@@ -14,7 +14,8 @@ import {
   Edit,
   Save,
   FileSymlink,
-  AlertCircle
+  AlertCircle,
+  Download
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { Outline, OutlineNode } from '@/types/outline';
@@ -22,6 +23,7 @@ import { OutlineGenerator } from '@/components/outline/OutlineGenerator';
 import { OutlineEditor } from '@/components/outline/OutlineEditor';
 import { OutlineAnalytics } from '@/components/outline/OutlineAnalytics';
 import { OutlineVersioning } from '@/components/outline/OutlineVersioning';
+import { OutlineExport } from '@/components/outline/OutlineExport';
 import { calculateTotalWordCount, calculateTotalDuration, generateOutlineNodes } from '@/services/outlineGeneration';
 import { saveOutlineVersion } from '@/services/outlineVersioning';
 import { standardsDatabase } from '@/data/standardsDatabase';
@@ -239,6 +241,14 @@ export default function OutlinePage() {
             <History className="h-4 w-4" />
             <span>Versions</span>
           </TabsTrigger>
+          <TabsTrigger 
+            value="export" 
+            className="flex items-center gap-1.5"
+            disabled={!outline}
+          >
+            <Download className="h-4 w-4" />
+            <span>Export</span>
+          </TabsTrigger>
         </TabsList>
         
         <TabsContent value="generate">
@@ -287,6 +297,18 @@ export default function OutlinePage() {
               onVersionRestore={handleVersionRestore}
               onBranchCreate={handleBranchCreate}
             />
+          ) : (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">
+                No outline available. Generate an outline first.
+              </p>
+            </div>
+          )}
+        </TabsContent>
+        
+        <TabsContent value="export">
+          {outline ? (
+            <OutlineExport outline={outline} />
           ) : (
             <div className="text-center py-12">
               <p className="text-muted-foreground">
