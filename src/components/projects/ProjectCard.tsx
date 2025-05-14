@@ -4,7 +4,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { ProjectConfig } from "@/types/project";
 import { formatDistanceToNow } from "date-fns";
-import { BookOpen, FileText, Grid2X2, Layout, LayoutList, ArrowRight } from "lucide-react";
+import { BookOpen, FileText, LayoutGrid, Layout, LayoutList, ArrowRight } from "lucide-react";
+import { Link } from "react-router-dom";
 
 interface ProjectCardProps {
   project: ProjectConfig;
@@ -15,7 +16,7 @@ interface ProjectCardProps {
   "aria-label"?: string;
 }
 
-export function ProjectCard({ project, onClick, className, ...props }: ProjectCardProps) {
+export function ProjectCard({ project, className, ...props }: ProjectCardProps) {
   const getProjectIcon = () => {
     switch (project.type) {
       case "lesson_plan":
@@ -27,7 +28,7 @@ export function ProjectCard({ project, onClick, className, ...props }: ProjectCa
       case "assessment":
         return <FileText className="h-5 w-5" />;
       case "study_guide":
-        return <Grid2X2 className="h-5 w-5" />;
+        return <LayoutGrid className="h-5 w-5" />;
       default:
         return <FileText className="h-5 w-5" />;
     }
@@ -47,8 +48,7 @@ export function ProjectCard({ project, onClick, className, ...props }: ProjectCa
 
   return (
     <Card 
-      className={`overflow-hidden transition-all hover:shadow-md cursor-pointer border-2 hover:border-primary/30 group ${className || ''}`}
-      onClick={onClick}
+      className={`overflow-hidden transition-all hover:shadow-md cursor-pointer border hover:border-primary/30 group ${className || ''}`}
       {...props}
     >
       <CardHeader className="p-6">
@@ -85,8 +85,14 @@ export function ProjectCard({ project, onClick, className, ...props }: ProjectCa
             {project.duration.replace('_', ' ')}
           </div>
         </div>
-        <Button size="sm" className="group-hover:bg-primary gap-2">
-          Open <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+        <Button 
+          size="sm" 
+          className="group-hover:bg-primary gap-2" 
+          asChild
+        >
+          <Link to={`/projects/${project.id}`}>
+            Open <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+          </Link>
         </Button>
       </CardFooter>
     </Card>

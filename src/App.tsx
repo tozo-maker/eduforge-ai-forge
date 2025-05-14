@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -12,6 +13,7 @@ import Register from "./pages/auth/Register";
 import ResetPassword from "./pages/auth/ResetPassword";
 import VerifyEmail from "./pages/auth/VerifyEmail";
 import Dashboard from "./pages/Dashboard";
+import Content from "./pages/Content";
 import ProtectedRoute from "./components/ProtectedRoute";
 import MainLayout from "./components/layout/MainLayout";
 import { Button } from "./components/ui/button";
@@ -104,6 +106,29 @@ const App = () => (
                     <p className="text-muted-foreground">Template details view is coming soon.</p>
                     <Button variant="outline" className="mt-4" asChild>
                       <Link to="/dashboard">Back to Dashboard</Link>
+                    </Button>
+                  </div>
+                </MainLayout>
+              </ProtectedRoute>
+            } />
+            
+            {/* Content Routes - Protected */}
+            <Route path="/content" element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <Content />
+                </MainLayout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/content/new" element={
+              <ProtectedRoute>
+                <MainLayout>
+                  <div className="container py-8">
+                    <h1 className="text-3xl font-bold mb-6">Create New Content</h1>
+                    <p className="text-muted-foreground">Content creation will be available in the next phase.</p>
+                    <Button variant="outline" className="mt-4" asChild>
+                      <Link to="/content">Back to Content</Link>
                     </Button>
                   </div>
                 </MainLayout>

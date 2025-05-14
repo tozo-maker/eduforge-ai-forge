@@ -2,32 +2,35 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
-import { FolderPlus, LayoutGrid } from 'lucide-react';
+import { Plus } from 'lucide-react';
 
 export const EmptyProjectState: React.FC = () => {
   return (
-    <div className="py-16 text-center">
-      <div className="flex justify-center mb-6">
-        <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center">
-          <FolderPlus className="h-10 w-10 text-primary" />
-        </div>
+    <div className="flex flex-col items-center justify-center py-12 text-center">
+      <div className="mb-4 rounded-full bg-primary/10 p-6">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-primary">
+          <path d="M4 20H20M4 4H10M4 8H8M4 12H14M14 4H20V16H4V4Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
       </div>
-      <h2 className="text-2xl font-semibold mb-2">Create Your First Project</h2>
-      <p className="text-muted-foreground mb-8 max-w-md mx-auto">
+      <h3 className="text-2xl font-bold mb-2">Create Your First Project</h3>
+      <p className="text-muted-foreground max-w-md mb-6">
         Get started by creating a new educational content project or choose from our templates.
       </p>
-      <div className="flex flex-col sm:flex-row justify-center gap-4">
-        <Button asChild className="gap-2">
+      <div className="flex flex-wrap gap-3 justify-center">
+        <Button className="gap-2" size="lg" asChild>
           <Link to="/projects/new">
-            <FolderPlus className="h-4 w-4" /> New Project
+            <Plus className="h-5 w-5" />
+            New Project
           </Link>
         </Button>
-        <Button variant="outline" asChild className="gap-2">
+        <Button variant="outline" size="lg" asChild>
           <Link to="/templates">
-            <LayoutGrid className="h-4 w-4" /> Browse Templates
+            Browse Templates
           </Link>
         </Button>
       </div>
     </div>
   );
 };
+
+export default EmptyProjectState;
