@@ -10,6 +10,7 @@ export const useProjects = () => {
   const [projects, setProjects] = useState<ProjectConfig[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
+  const [isRetrying, setIsRetrying] = useState<boolean>(false);
   const { user } = useAuth();
 
   // Use useCallback to prevent infinite dependency loops
@@ -19,6 +20,7 @@ export const useProjects = () => {
     try {
       setIsLoading(true);
       setError(null);
+      setIsRetrying(retryCount > 0);
 
       const { data, error } = await supabase
         .from('projects')
@@ -35,6 +37,14 @@ export const useProjects = () => {
       );
       
       setProjects(appProjects);
+      
+      if (retryCount > 0) {
+        toast({
+          title: 'Success',
+          description: 'Projects loaded successfully.',
+          duration: 2000,
+        });
+      }
     } catch (err) {
       console.error("Error fetching projects:", err);
       setError(err instanceof Error ? err : new Error('Failed to fetch projects'));
@@ -45,7 +55,7 @@ export const useProjects = () => {
           title: 'Error',
           description: 'Failed to load projects. Please try again.',
           variant: 'destructive',
-          duration: 3000, // Reduce duration for better UX
+          duration: 3000,
         });
       } else {
         // Implement retry logic with exponential backoff
@@ -54,6 +64,7 @@ export const useProjects = () => {
       }
     } finally {
       setIsLoading(false);
+      setIsRetrying(false);
     }
   }, [user]);
 
@@ -67,5 +78,5 @@ export const useProjects = () => {
     }
   }, [user, fetchProjects]);
 
-  return { projects, isLoading, error, fetchProjects };
+  return { projects, isLoading, isRetrying, error, fetchProjects };
 };
