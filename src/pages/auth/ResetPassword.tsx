@@ -64,7 +64,7 @@ const ResetPassword = () => {
             </Button>
             <div className="text-sm text-center text-muted-foreground">
               Remember your password?{' '}
-              <Link to="/auth/login" className="text-primary hover:underline">
+              <Link to="/login" className="text-primary hover:underline">
                 Back to Sign In
               </Link>
             </div>

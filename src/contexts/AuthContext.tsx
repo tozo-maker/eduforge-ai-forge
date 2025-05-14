@@ -31,6 +31,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        console.log('Auth state changed:', event, session?.user?.id);
         setSession(session);
         setUser(session?.user ?? null);
         setIsLoading(false);
@@ -39,6 +40,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
     // THEN check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('Initial session check:', session?.user?.id);
       setSession(session);
       setUser(session?.user ?? null);
       setIsLoading(false);
@@ -50,9 +52,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const signIn = async (email: string, password: string) => {
     try {
       setIsLoading(true);
+      console.log('Attempting to sign in with email:', email);
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       
       if (error) {
+        console.error('Sign in error:', error.message);
         toast({
           title: "Sign in failed",
           description: error.message,
@@ -61,9 +65,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         return;
       }
 
+      console.log('Sign in successful, navigating to dashboard');
       navigate('/dashboard');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to sign in';
+      console.error('Sign in exception:', errorMessage);
       toast({
         title: "Error",
         description: errorMessage,
@@ -77,6 +83,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const signUp = async (email: string, password: string, fullName: string, organization?: string) => {
     try {
       setIsLoading(true);
+      console.log('Attempting to sign up with email:', email);
       const { error } = await supabase.auth.signUp({ 
         email, 
         password,
@@ -89,6 +96,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       });
       
       if (error) {
+        console.error('Sign up error:', error.message);
         toast({
           title: "Sign up failed",
           description: error.message,
@@ -101,9 +109,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         title: "Welcome to EduForge AI",
         description: "Your account has been created. Please check your email for verification.",
       });
-      navigate('/auth/verify');
+      navigate('/verify-email');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to sign up';
+      console.error('Sign up exception:', errorMessage);
       toast({
         title: "Error",
         description: errorMessage,
@@ -117,10 +126,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const signOut = async () => {
     try {
       setIsLoading(true);
+      console.log('Signing out');
       await supabase.auth.signOut();
       navigate('/');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to sign out';
+      console.error('Sign out exception:', errorMessage);
       toast({
         title: "Error",
         description: errorMessage,
@@ -134,9 +145,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const resetPassword = async (email: string) => {
     try {
       setIsLoading(true);
+      console.log('Requesting password reset for:', email);
       const { error } = await supabase.auth.resetPasswordForEmail(email);
       
       if (error) {
+        console.error('Password reset error:', error.message);
         toast({
           title: "Password reset failed",
           description: error.message,
@@ -149,9 +162,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         title: "Password reset email sent",
         description: "Check your email for a password reset link.",
       });
-      navigate('/auth/login');
+      navigate('/login');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to reset password';
+      console.error('Password reset exception:', errorMessage);
       toast({
         title: "Error",
         description: errorMessage,

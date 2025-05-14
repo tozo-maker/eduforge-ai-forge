@@ -18,6 +18,7 @@ import Content from '@/pages/Content';
 import MainLayout from '@/components/layout/MainLayout';
 import NewProject from '@/pages/NewProject';
 import OutlinePage from '@/pages/OutlinePage';
+import './App.css';
 
 function App() {
   return (
@@ -27,11 +28,18 @@ function App() {
           <QueryClientProvider client={queryClient}>
             <Router>
               <Routes>
+                {/* Public Routes */}
                 <Route path="/" element={<Landing />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/verify-email" element={<VerifyEmail />} />
+                
+                {/* Auth Routes (for backward compatibility) */}
+                <Route path="/auth/login" element={<Navigate to="/login" replace />} />
+                <Route path="/auth/register" element={<Navigate to="/register" replace />} />
+                <Route path="/auth/reset-password" element={<Navigate to="/reset-password" replace />} />
+                <Route path="/auth/verify" element={<Navigate to="/verify-email" replace />} />
                 
                 {/* Protected Routes */}
                 <Route element={
@@ -48,6 +56,10 @@ function App() {
                   </Route>
                 </Route>
                 
+                {/* Root redirect */}
+                <Route path="/index" element={<Navigate to="/dashboard" replace />} />
+                
+                {/* 404 Route */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Router>

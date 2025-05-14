@@ -42,7 +42,7 @@ const VerifyEmail = () => {
         <CardFooter className="flex-col space-y-4">
           <div className="text-sm text-center text-muted-foreground">
             Already verified?{' '}
-            <Link to="/auth/login" className="text-primary hover:underline">
+            <Link to="/login" className="text-primary hover:underline">
               Sign in
             </Link>
           </div>
