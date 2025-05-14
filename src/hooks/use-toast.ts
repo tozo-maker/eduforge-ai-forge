@@ -10,20 +10,20 @@ export function toast(props: ToastProps) {
   const { title, description, variant, ...rest } = props;
   
   if (variant === 'destructive') {
-    return sonnerToast.error(title || 'Error', {
+    return sonnerToast.error(title as string || 'Error', {
       description,
       ...rest
     });
   }
   
   if (variant === 'success' || title === 'Success') {
-    return sonnerToast.success(title || 'Success', {
+    return sonnerToast.success(title as string || 'Success', {
       description,
       ...rest
     });
   }
 
-  return sonnerToast(title || '', {
+  return sonnerToast(title as string || '', {
     description,
     ...rest
   });

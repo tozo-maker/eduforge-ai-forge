@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { X, Link, Plus, BookOpen, Lightbulb, FileText } from 'lucide-react';
-import { Outline, OutlineNode } from '@/types/outline';
+import { Outline, OutlineNode, Reference } from '@/types/outline';
 import { toast } from '@/hooks/use-toast';
 
 export interface ReferenceIntegratorProps {
@@ -14,15 +14,6 @@ export interface ReferenceIntegratorProps {
   onUpdateOutline: (outline: Outline) => void;
   suggestedPlacements?: Record<string, string[]>;
   hasAnalyzedReferences?: boolean;
-}
-
-// Interface for reference material
-interface Reference {
-  id: string;
-  title: string;
-  url?: string;
-  notes?: string;
-  type: 'article' | 'book' | 'video' | 'website' | 'research';
 }
 
 export function ReferenceIntegrator({ 
@@ -36,10 +27,10 @@ export function ReferenceIntegrator({
     outline.references || []
   );
   
-  // State for new reference form
+  // State for new reference form - now with required url property
   const [newReference, setNewReference] = useState<Omit<Reference, 'id'>>({
     title: '',
-    url: '',
+    url: '', // Required field based on the type definition
     notes: '',
     type: 'article'
   });
@@ -56,6 +47,15 @@ export function ReferenceIntegrator({
     if (!newReference.title) {
       toast({
         description: "Reference title is required",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // Now require URL as it's not optional in the Outline type
+    if (!newReference.url) {
+      toast({
+        description: "Reference URL is required",
         variant: "destructive"
       });
       return;
@@ -107,7 +107,7 @@ export function ReferenceIntegrator({
   
   // Save all reference changes to the outline
   const handleSaveReferences = () => {
-    const updatedOutline = { 
+    const updatedOutline: Outline = { 
       ...outline,
       references,
       nodeReferences
@@ -257,9 +257,10 @@ export function ReferenceIntegrator({
               
               <div className="grid grid-cols-2 gap-2">
                 <Input
-                  placeholder="URL (Optional)"
-                  value={newReference.url || ''}
+                  placeholder="URL (Required)" // Updated to show it's required
+                  value={newReference.url}
                   onChange={(e) => setNewReference({ ...newReference, url: e.target.value })}
+                  required // Added required attribute
                 />
                 
                 <select 

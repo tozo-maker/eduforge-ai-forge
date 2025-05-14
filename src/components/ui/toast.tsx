@@ -112,10 +112,10 @@ const ToastDescription = React.forwardRef<
 ))
 ToastDescription.displayName = ToastPrimitives.Description.displayName
 
-// Update the ToastProps to include description field
-interface ToastProps extends React.ComponentPropsWithoutRef<typeof Toast> {
+// Fixed ToastProps to avoid type conflicts
+type ToastProps = React.ComponentPropsWithoutRef<typeof Toast> & {
   description?: React.ReactNode;
-  title?: React.ReactNode;
+  title?: React.ReactNode | string;
 }
 
 type ToastActionElement = React.ReactElement<typeof ToastAction>
