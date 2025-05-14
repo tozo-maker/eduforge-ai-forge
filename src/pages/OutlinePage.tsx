@@ -13,7 +13,8 @@ import {
   ChevronLeft,
   Edit,
   Save,
-  FileSymlink
+  FileSymlink,
+  AlertCircle
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { Outline, OutlineNode } from '@/types/outline';
@@ -25,6 +26,8 @@ import { calculateTotalWordCount, calculateTotalDuration, generateOutlineNodes }
 import { saveOutlineVersion } from '@/services/outlineVersioning';
 import { standardsDatabase } from '@/data/standardsDatabase';
 import { ContentStructureVisualizer } from '@/components/projects/ContentStructureVisualizer';
+import { validateOutlineCoherence } from '@/services/outlineValidation';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 export default function OutlinePage() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -33,6 +36,7 @@ export default function OutlinePage() {
   const [outline, setOutline] = useState<Outline | null>(null);
   const [activeTab, setActiveTab] = useState('generate');
   const [contentStructure, setContentStructure] = useState<'sequential' | 'hierarchical' | 'modular' | 'spiral'>('sequential');
+  const [validationIssues, setValidationIssues] = useState<string[]>([]);
 
   // Handle generation of a new outline
   const handleOutlineGenerated = (newOutline: Outline) => {
@@ -41,21 +45,40 @@ export default function OutlinePage() {
     
     // Save the initial version
     saveOutlineVersion(newOutline, 'Initial generation');
+    
+    // Validate the outline
+    const issues = validateOutlineCoherence(newOutline);
+    setValidationIssues(issues);
   };
 
   // Handle saving outline changes
   const handleSaveOutline = (updatedOutline: Outline) => {
     setOutline(updatedOutline);
+    
+    // Validate the outline
+    const issues = validateOutlineCoherence(updatedOutline);
+    setValidationIssues(issues);
+    
+    // Save a version
+    saveOutlineVersion(updatedOutline, 'Updated outline');
   };
 
   // Handle restoring a version
   const handleVersionRestore = (restoredOutline: Outline) => {
     setOutline(restoredOutline);
+    
+    // Validate the outline
+    const issues = validateOutlineCoherence(restoredOutline);
+    setValidationIssues(issues);
   };
 
   // Handle creating a branch
   const handleBranchCreate = (branchedOutline: Outline) => {
     setOutline(branchedOutline);
+    
+    // Validate the outline
+    const issues = validateOutlineCoherence(branchedOutline);
+    setValidationIssues(issues);
   };
 
   // Generate preview outline nodes based on selected structure
@@ -69,7 +92,8 @@ export default function OutlinePage() {
       true, 
       true, 
       0, 
-      []
+      [],
+      structure
     ).slice(0, structure === 'modular' ? 6 : 4); // Limit to a few nodes for preview
   };
 
@@ -166,6 +190,24 @@ export default function OutlinePage() {
         outlineNodes={outline?.rootNodes || generatePreviewOutline(contentStructure)}
         onVisualizeOutline={generatePreviewOutline}
       />
+      
+      {validationIssues.length > 0 && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Structural Issues Detected</AlertTitle>
+          <AlertDescription>
+            <p className="mb-2">Your outline has {validationIssues.length} validation issues to address:</p>
+            <ul className="list-disc pl-5 space-y-1 text-sm">
+              {validationIssues.slice(0, 3).map((issue, index) => (
+                <li key={index}>{issue}</li>
+              ))}
+              {validationIssues.length > 3 && (
+                <li>...and {validationIssues.length - 3} more issues</li>
+              )}
+            </ul>
+          </AlertDescription>
+        </Alert>
+      )}
       
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="mb-6">

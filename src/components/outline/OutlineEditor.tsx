@@ -1,5 +1,5 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,7 +13,10 @@ import {
   Edit, 
   Clock, 
   BookOpen,
-  AlertCircle 
+  AlertCircle, 
+  Link,
+  BarChart3,
+  Save
 } from 'lucide-react';
 import { Outline, OutlineNode, OutlineNodeType, DifficultyLevel, TaxonomyLevel } from '@/types/outline';
 import { EducationalStandard } from '@/types/project';
@@ -27,6 +30,16 @@ import {
 } from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
 import { calculateTotalWordCount, calculateTotalDuration } from '@/services/outlineGeneration';
+import { validateOutlineCoherence } from '@/services/outlineValidation';
+import { Progress } from '@/components/ui/progress';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { GapAnalysisDrawer } from '@/components/outline/GapAnalysisDrawer';
+import { ReferenceIntegrator } from '@/components/outline/ReferenceIntegrator';
+import { StandardsVerifier } from '@/components/outline/StandardsVerifier';
+import { WordCountOptimizer } from '@/components/outline/WordCountOptimizer';
+import { OutlineRelationshipVisualizer } from '@/components/outline/OutlineRelationshipVisualizer';
+import { Switch } from '@/components/ui/switch';
+import { Label } from "@/components/ui/label";
 
 interface OutlineEditorProps {
   outline: Outline;
@@ -38,8 +51,20 @@ export function OutlineEditor({ outline, standards = [], onSave }: OutlineEditor
   const [editableOutline, setEditableOutline] = useState<Outline>({...outline});
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
   const [editingNode, setEditingNode] = useState<string | null>(null);
-  const dragNode = useRef<string | null>(null);
-  const dropTarget = useRef<string | null>(null);
+  const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
+  const [dropTargetId, setDropTargetId] = useState<string | null>(null);
+  const [showRelationships, setShowRelationships] = useState<boolean>(false);
+  const [showGapAnalysis, setShowGapAnalysis] = useState<boolean>(false);
+  const [showWordOptimizer, setShowWordOptimizer] = useState<boolean>(false);
+  const [showStandardsVerifier, setShowStandardsVerifier] = useState<boolean>(false);
+  const [showReferenceIntegrator, setShowReferenceIntegrator] = useState<boolean>(false);
+  const [validationIssues, setValidationIssues] = useState<string[]>([]);
+
+  // Validate outline structural coherence whenever the outline changes
+  useEffect(() => {
+    const issues = validateOutlineCoherence(editableOutline);
+    setValidationIssues(issues);
+  }, [editableOutline]);
 
   // Node type options
   const nodeTypeOptions: { value: OutlineNodeType; label: string }[] = [
@@ -195,103 +220,139 @@ export function OutlineEditor({ outline, standards = [], onSave }: OutlineEditor
     }
   };
 
-  // Handle drag start
-  const handleDragStart = (nodeId: string, e: React.DragEvent) => {
-    dragNode.current = nodeId;
-    e.dataTransfer.setData('text/plain', nodeId);
-    e.dataTransfer.effectAllowed = 'move';
+  // Drag and Drop Handlers
+  const handleDragStart = (e: React.DragEvent<HTMLDivElement>, nodeId: string) => {
+    e.dataTransfer.setData("text/plain", nodeId);
+    e.dataTransfer.effectAllowed = "move";
+    setDraggingNodeId(nodeId);
+    
+    // Delay adding dragging class to avoid flickering
+    setTimeout(() => {
+      const element = document.getElementById(`node-${nodeId}`);
+      if (element) element.classList.add("dragging");
+    }, 0);
   };
-
-  // Handle drag over
-  const handleDragOver = (nodeId: string, e: React.DragEvent) => {
+  
+  const handleDragEnd = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
-    dropTarget.current = nodeId;
-    e.dataTransfer.dropEffect = 'move';
-  };
-
-  // Handle drop
-  const handleDrop = (targetNodeId: string, e: React.DragEvent) => {
-    e.preventDefault();
-    
-    if (!dragNode.current) return;
-    
-    const sourceNodeId = dragNode.current;
-    
-    // Don't drop on self
-    if (sourceNodeId === targetNodeId) {
-      dragNode.current = null;
-      dropTarget.current = null;
-      return;
+    if (draggingNodeId) {
+      const element = document.getElementById(`node-${draggingNodeId}`);
+      if (element) element.classList.remove("dragging");
+      setDraggingNodeId(null);
     }
+    setDropTargetId(null);
     
-    // Find and remove the source node
+    // Remove all drop target indicators
+    document.querySelectorAll('.drop-target').forEach((el) => {
+      el.classList.remove('drop-target');
+    });
+  };
+  
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>, nodeId: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    
+    if (draggingNodeId === nodeId) return; // Can't drop onto self
+    
+    setDropTargetId(nodeId);
+    
+    // Add visual indicator to drop target
+    const element = document.getElementById(`node-${nodeId}`);
+    if (element) {
+      document.querySelectorAll('.drop-target').forEach((el) => {
+        if (el.id !== `node-${nodeId}`) el.classList.remove('drop-target');
+      });
+      element.classList.add('drop-target');
+    }
+  };
+  
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>, targetId: string) => {
+    e.preventDefault();
+    
+    const sourceId = e.dataTransfer.getData("text/plain");
+    if (!sourceId || sourceId === targetId) return;
+    
+    // Clear visual indicators
+    document.querySelectorAll('.dragging, .drop-target').forEach((el) => {
+      el.classList.remove('dragging', 'drop-target');
+    });
+    
+    // Find source node and remove from current position
     let sourceNode: OutlineNode | null = null;
     
-    const removeSourceNode = (nodes: OutlineNode[]): OutlineNode[] => {
+    const findAndRemoveSource = (nodes: OutlineNode[]): OutlineNode[] => {
       return nodes.filter(node => {
-        if (node.id === sourceNodeId) {
+        if (node.id === sourceId) {
           sourceNode = {...node};
           return false;
         }
         if (node.children.length > 0) {
-          node.children = removeSourceNode(node.children);
+          node.children = findAndRemoveSource(node.children);
         }
         return true;
       });
     };
     
-    const outlineWithoutSource = {
-      ...editableOutline,
-      rootNodes: removeSourceNode([...editableOutline.rootNodes])
-    };
+    const updatedRootNodes = findAndRemoveSource([...editableOutline.rootNodes]);
     
     if (!sourceNode) {
-      console.error('Source node not found');
+      console.error("Source node not found", sourceId);
       return;
     }
     
-    // Add the source node to the target
-    const addToTarget = (nodes: OutlineNode[]): OutlineNode[] => {
-      return nodes.map(node => {
-        if (node.id === targetNodeId) {
-          return { 
-            ...node, 
-            children: [...node.children, sourceNode!] 
-          };
+    // Find target node and add source as its child
+    const addSourceToTarget = (nodes: OutlineNode[]): boolean => {
+      for (let i = 0; i < nodes.length; i++) {
+        if (nodes[i].id === targetId) {
+          // Add as child of target node
+          nodes[i].children.push(sourceNode!);
+          setExpandedNodes(prev => new Set([...prev, targetId])); // Expand the target node
+          return true;
         }
-        if (node.children.length > 0) {
-          return { ...node, children: addToTarget(node.children) };
+        if (nodes[i].children.length > 0 && addSourceToTarget(nodes[i].children)) {
+          return true;
         }
-        return node;
-      });
+      }
+      return false;
     };
     
-    // Try to add to target's children
-    let outlineWithTarget = {
-      ...outlineWithoutSource,
-      rootNodes: addToTarget(outlineWithoutSource.rootNodes)
-    };
+    // Try to add to target
+    const targetFound = addSourceToTarget(updatedRootNodes);
     
-    // If the target node wasn't found as a child, add source as a root node
-    if (JSON.stringify(outlineWithTarget) === JSON.stringify(outlineWithoutSource)) {
-      outlineWithTarget = {
-        ...outlineWithoutSource,
-        rootNodes: [...outlineWithoutSource.rootNodes, sourceNode]
-      };
+    // If target not found in tree, add source as a root node
+    if (!targetFound) {
+      updatedRootNodes.push(sourceNode);
     }
     
-    setEditableOutline(outlineWithTarget);
+    setEditableOutline(prev => ({
+      ...prev,
+      rootNodes: updatedRootNodes,
+      updatedAt: new Date()
+    }));
     
-    // Expand the target
-    setExpandedNodes(prev => new Set([...prev, targetNodeId]));
+    setDraggingNodeId(null);
+    setDropTargetId(null);
     
-    // Reset refs
-    dragNode.current = null;
-    dropTarget.current = null;
+    // Show success toast
+    toast({
+      title: "Node Moved",
+      description: "Outline structure has been updated."
+    });
   };
 
   // Handle save
   const handleSave = () => {
+    const issues = validateOutlineCoherence(editableOutline);
+    
+    if (issues.length > 0) {
+      toast({
+        title: "Validation Issues",
+        description: `Please fix ${issues.length} structural issues before saving.`,
+        variant: "destructive"
+      });
+      return;
+    }
+    
     const newOutline = {
       ...editableOutline,
       version: editableOutline.version + 1,
@@ -308,6 +369,28 @@ export function OutlineEditor({ outline, standards = [], onSave }: OutlineEditor
   // Calculate totals
   const totalWordCount = calculateTotalWordCount(editableOutline.rootNodes);
   const totalDuration = calculateTotalDuration(editableOutline.rootNodes);
+  
+  // Check if the outline covers all standards
+  const standardsCoverage = standards.filter(std => {
+    // Check if standard is used in any node
+    let found = false;
+    const checkNode = (node: OutlineNode) => {
+      if (node.standardIds.includes(std.id)) {
+        found = true;
+        return true;
+      }
+      for (const child of node.children) {
+        if (checkNode(child)) return true;
+      }
+      return false;
+    };
+    
+    editableOutline.rootNodes.some(checkNode);
+    return found;
+  }).length;
+  
+  const standardsPercentage = standards.length > 0 ? 
+    Math.round((standardsCoverage / standards.length) * 100) : 100;
 
   // Render a node and its children
   const renderNode = (node: OutlineNode, depth: number = 0) => {
@@ -322,15 +405,19 @@ export function OutlineEditor({ outline, standards = [], onSave }: OutlineEditor
     
     return (
       <div 
+        id={`node-${node.id}`}
         key={node.id}
-        className="outline-node"
-        draggable
-        onDragStart={(e) => handleDragStart(node.id, e)}
-        onDragOver={(e) => handleDragOver(node.id, e)}
-        onDrop={(e) => handleDrop(node.id, e)}
+        className={`outline-node relative ${draggingNodeId === node.id ? 'opacity-50' : ''} ${
+          dropTargetId === node.id ? 'bg-primary-100 border-primary' : ''
+        }`}
+        draggable={true}
+        onDragStart={(e) => handleDragStart(e, node.id)}
+        onDragEnd={handleDragEnd}
+        onDragOver={(e) => handleDragOver(e, node.id)}
+        onDrop={(e) => handleDrop(e, node.id)}
       >
         <div 
-          className={`flex items-start p-2 rounded-md mb-1 ${
+          className={`flex items-start p-2 rounded-md mb-1 transition-all ${
             depth === 0 ? 'bg-muted' : 'bg-card border'
           } ${isEditing ? 'ring-2 ring-primary' : ''}`}
           style={{ marginLeft: `${depth * 1.5}rem` }}
@@ -450,6 +537,25 @@ export function OutlineEditor({ outline, standards = [], onSave }: OutlineEditor
                       className="h-8"
                     />
                   </div>
+                  
+                  <div className="col-span-2 space-y-1">
+                    <label className="text-xs font-medium">Standards</label>
+                    <Select
+                      value={node.standardIds[0] || ""}
+                      onValueChange={(value) => updateNode(node.id, 'standardIds', [value])}
+                    >
+                      <SelectTrigger className="h-8">
+                        <SelectValue placeholder="Select standard" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {standards.map(standard => (
+                          <SelectItem key={standard.id} value={standard.id}>
+                            {standard.id}: {standard.description?.substring(0, 30)}...
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 
                 <div className="flex justify-end gap-2">
@@ -536,46 +642,180 @@ export function OutlineEditor({ outline, standards = [], onSave }: OutlineEditor
   };
 
   return (
-    <Card className="w-full">
-      <CardHeader className="flex flex-row items-center justify-between">
-        <div>
-          <CardTitle>Outline Editor</CardTitle>
-          <CardDescription>
-            Drag and drop nodes to structure your content
-          </CardDescription>
+    <div className="space-y-4">
+      {validationIssues.length > 0 && (
+        <div className="bg-destructive/10 border border-destructive/30 rounded-md p-4 mb-4">
+          <h4 className="text-destructive font-medium mb-2 flex items-center">
+            <AlertCircle className="h-4 w-4 mr-2" />
+            Structure Validation Issues ({validationIssues.length})
+          </h4>
+          <ul className="list-disc pl-5 space-y-1">
+            {validationIssues.map((issue, index) => (
+              <li key={index} className="text-sm">{issue}</li>
+            ))}
+          </ul>
         </div>
-        <div className="flex gap-2 items-center">
-          <div className="text-sm flex items-center mr-4">
-            <div className="flex items-center mr-4">
-              <BookOpen className="h-4 w-4 mr-1" />
-              <span>{totalWordCount} words</span>
+      )}
+      
+      <Card className="w-full">
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Outline Editor</CardTitle>
+            <CardDescription>
+              Drag and drop nodes to structure your content
+            </CardDescription>
+          </div>
+          <div className="flex gap-2 items-center">
+            <div className="text-sm flex items-center mr-4">
+              <div className="flex items-center mr-4">
+                <BookOpen className="h-4 w-4 mr-1" />
+                <span>{totalWordCount} words</span>
+              </div>
+              <div className="flex items-center mr-4">
+                <Clock className="h-4 w-4 mr-1" />
+                <span>{totalDuration} mins</span>
+              </div>
+              
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center">
+                      <span className="text-xs mr-1">Standards:</span>
+                      <Progress value={standardsPercentage} className="w-20 h-2" />
+                      <span className="text-xs ml-1">{standardsPercentage}%</span>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="text-xs">{standardsCoverage} of {standards.length} standards covered</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
-            <div className="flex items-center">
-              <Clock className="h-4 w-4 mr-1" />
-              <span>{totalDuration} mins</span>
+            
+            <div className="flex items-center gap-2">
+              <Button variant="outline" onClick={addRootNode} size="sm">
+                <Plus className="h-4 w-4 mr-1" /> Add Section
+              </Button>
+              
+              <Button
+                variant={showRelationships ? "secondary" : "outline"}
+                size="sm"
+                onClick={() => setShowRelationships(!showRelationships)}
+              >
+                <Link className="h-4 w-4 mr-1" /> Relationships
+              </Button>
+              
+              <Button
+                variant={showGapAnalysis ? "secondary" : "outline"}
+                size="sm"
+                onClick={() => setShowGapAnalysis(!showGapAnalysis)}
+              >
+                <BarChart3 className="h-4 w-4 mr-1" /> Gap Analysis
+              </Button>
+              
+              <Button variant="default" onClick={handleSave}>
+                <Save className="h-4 w-4 mr-1" /> Save
+              </Button>
             </div>
           </div>
-          <Button variant="outline" onClick={addRootNode}>
-            <Plus className="h-4 w-4 mr-1" /> Add Section
-          </Button>
-          <Button onClick={handleSave}>Save Outline</Button>
-        </div>
-      </CardHeader>
-      <CardContent>
-        {editableOutline.rootNodes.length === 0 ? (
-          <div className="text-center p-8 border rounded-md">
-            <AlertCircle className="h-10 w-10 mx-auto text-muted-foreground mb-2" />
-            <p className="text-muted-foreground">
-              No outline nodes yet. Click "Add Section" to get started or generate an outline.
-            </p>
+        </CardHeader>
+        
+        <CardContent>
+          <div className="flex flex-col gap-6">
+            <div className="flex flex-wrap gap-2">
+              <Button 
+                size="sm" 
+                variant={showWordOptimizer ? "secondary" : "outline"}
+                onClick={() => setShowWordOptimizer(!showWordOptimizer)}
+              >
+                Word Count Optimizer
+              </Button>
+              
+              <Button 
+                size="sm" 
+                variant={showStandardsVerifier ? "secondary" : "outline"}
+                onClick={() => setShowStandardsVerifier(!showStandardsVerifier)}
+              >
+                Standards Verification
+              </Button>
+              
+              <Button 
+                size="sm" 
+                variant={showReferenceIntegrator ? "secondary" : "outline"}
+                onClick={() => setShowReferenceIntegrator(!showReferenceIntegrator)}
+              >
+                Reference Integration
+              </Button>
+              
+              <div className="ml-auto flex items-center space-x-2">
+                <Label htmlFor="dragdrop-hint" className="text-xs text-muted-foreground">Show drag-drop hints</Label>
+                <Switch id="dragdrop-hint" />
+              </div>
+            </div>
+            
+            {showWordOptimizer && (
+              <WordCountOptimizer 
+                outline={editableOutline}
+                onUpdateOutline={setEditableOutline}
+              />
+            )}
+            
+            {showStandardsVerifier && (
+              <StandardsVerifier 
+                outline={editableOutline}
+                standards={standards}
+                onUpdateOutline={setEditableOutline}
+              />
+            )}
+            
+            {showReferenceIntegrator && (
+              <ReferenceIntegrator 
+                outline={editableOutline}
+                onUpdateOutline={setEditableOutline}
+              />
+            )}
+            
+            {editableOutline.rootNodes.length === 0 ? (
+              <div className="text-center p-8 border rounded-md">
+                <AlertCircle className="h-10 w-10 mx-auto text-muted-foreground mb-2" />
+                <p className="text-muted-foreground">
+                  No outline nodes yet. Click "Add Section" to get started or generate an outline.
+                </p>
+              </div>
+            ) : (
+              <div className="outline-editor">
+                {editableOutline.rootNodes.map(node => renderNode(node))}
+              </div>
+            )}
           </div>
-        ) : (
-          <div className="outline-editor">
-            {editableOutline.rootNodes.map(node => renderNode(node))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+      
+      {showRelationships && (
+        <OutlineRelationshipVisualizer 
+          outline={editableOutline} 
+          onUpdateOutline={setEditableOutline} 
+        />
+      )}
+      
+      <GapAnalysisDrawer 
+        open={showGapAnalysis} 
+        onOpenChange={setShowGapAnalysis}
+        outline={editableOutline}
+        standards={standards}
+        onUpdateOutline={setEditableOutline}
+      />
+      
+      <style jsx global>{`
+        .outline-node.dragging {
+          opacity: 0.5;
+        }
+        .outline-node .drop-target {
+          background-color: rgba(59, 130, 246, 0.1);
+          border: 2px dashed #3b82f6;
+        }
+      `}</style>
+    </div>
   );
 }
 

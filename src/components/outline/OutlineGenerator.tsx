@@ -1,16 +1,18 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Loader2, BookOpen, Lightbulb, Sparkles } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Loader2, BookOpen, Lightbulb, Sparkles, BookIcon, Link as LinkIcon, FileText, Video } from 'lucide-react';
 import { ProjectConfig } from '@/types/project';
-import { OutlineGenerationParams, AIModelType, Outline } from '@/types/outline';
+import { OutlineGenerationParams, AIModelType, Outline, Reference } from '@/types/outline';
 import { generateOutline } from '@/services/outlineGeneration';
 import { toast } from '@/hooks/use-toast';
+import { Badge } from '@/components/ui/badge';
 
 interface OutlineGeneratorProps {
   projectConfig: ProjectConfig;
@@ -34,8 +36,22 @@ export function OutlineGenerator({
     referenceUrls: [],
     structureType: selectedStructure
   });
+  
   const [focusArea, setFocusArea] = useState('');
-  const [referenceUrl, setReferenceUrl] = useState('');
+  const [references, setReferences] = useState<Reference[]>([]);
+  
+  // New reference form
+  const [newReference, setNewReference] = useState<{
+    title: string;
+    url: string;
+    notes: string;
+    type: 'article' | 'book' | 'video' | 'website' | 'research';
+  }>({
+    title: '',
+    url: '',
+    notes: '',
+    type: 'article'
+  });
 
   // Update generation params when selected structure changes
   React.useEffect(() => {
@@ -69,21 +85,68 @@ export function OutlineGenerator({
     }));
   };
 
-  const addReferenceUrl = () => {
-    if (referenceUrl.trim()) {
+  // Add a new reference 
+  const addReference = () => {
+    if (!newReference.title.trim()) {
+      toast({
+        description: "Reference title is required",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    const reference: Reference = {
+      ...newReference,
+      id: crypto.randomUUID()
+    };
+    
+    setReferences([...references, reference]);
+    
+    // Also add URL to referenceUrls for backward compatibility
+    if (newReference.url) {
       setGenerationParams(prev => ({
         ...prev,
-        referenceUrls: [...(prev.referenceUrls || []), referenceUrl.trim()]
+        referenceUrls: [...(prev.referenceUrls || []), newReference.url]
       }));
-      setReferenceUrl('');
+    }
+    
+    // Reset form
+    setNewReference({
+      title: '',
+      url: '',
+      notes: '',
+      type: 'article'
+    });
+  };
+
+  // Remove a reference
+  const removeReference = (id: string) => {
+    const ref = references.find(r => r.id === id);
+    setReferences(references.filter(r => r.id !== id));
+    
+    // Also remove from referenceUrls if it exists
+    if (ref?.url) {
+      setGenerationParams(prev => ({
+        ...prev,
+        referenceUrls: prev.referenceUrls?.filter(url => url !== ref.url)
+      }));
     }
   };
 
-  const removeReferenceUrl = (index: number) => {
-    setGenerationParams(prev => ({
-      ...prev,
-      referenceUrls: prev.referenceUrls?.filter((_, i) => i !== index)
-    }));
+  // Get reference icon based on type
+  const getReferenceIcon = (type: string) => {
+    switch (type) {
+      case 'article':
+        return <FileText className="h-4 w-4" />;
+      case 'book':
+        return <BookIcon className="h-4 w-4" />;
+      case 'video':
+        return <Video className="h-4 w-4" />;
+      case 'website':
+      case 'research':
+      default:
+        return <LinkIcon className="h-4 w-4" />;
+    }
   };
 
   const handleGenerateOutline = async () => {
@@ -97,7 +160,14 @@ export function OutlineGenerator({
       });
       
       if (outline) {
-        onOutlineGenerated(outline);
+        // Add references to the outline
+        const outlineWithReferences = {
+          ...outline,
+          references,
+          nodeReferences: {} // Initialize empty mapping
+        };
+        
+        onOutlineGenerated(outlineWithReferences);
         toast({
           title: "Outline Generated",
           description: "Your outline has been successfully created.",
@@ -225,33 +295,94 @@ export function OutlineGenerator({
           )}
         </div>
         
-        <div className="space-y-2">
-          <Label className="block">Reference Materials (Optional)</Label>
-          <div className="flex gap-2">
+        <div className="space-y-3">
+          <Label className="block">Reference Materials</Label>
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
             <Input 
-              value={referenceUrl} 
-              onChange={(e) => setReferenceUrl(e.target.value)}
-              placeholder="Add URL to reference material" 
-              className="flex-1"
-              onKeyDown={(e) => e.key === 'Enter' && addReferenceUrl()}
+              value={newReference.title} 
+              onChange={(e) => setNewReference({...newReference, title: e.target.value})}
+              placeholder="Title" 
+              className="md:col-span-2"
             />
-            <Button type="button" variant="outline" onClick={addReferenceUrl}>Add</Button>
+            
+            <Input 
+              value={newReference.url} 
+              onChange={(e) => setNewReference({...newReference, url: e.target.value})}
+              placeholder="URL (optional)" 
+              className="md:col-span-2"
+            />
+            
+            <select 
+              className="border rounded-md px-3 py-1"
+              value={newReference.type}
+              onChange={(e) => setNewReference({
+                ...newReference, 
+                type: e.target.value as any
+              })}
+            >
+              <option value="article">Article</option>
+              <option value="book">Book</option>
+              <option value="video">Video</option>
+              <option value="website">Website</option>
+              <option value="research">Research</option>
+            </select>
           </div>
-          {generationParams.referenceUrls && generationParams.referenceUrls.length > 0 && (
-            <div className="space-y-2 mt-2">
-              {generationParams.referenceUrls.map((url, index) => (
-                <div key={index} className="flex items-center justify-between bg-secondary/30 p-2 rounded-md">
-                  <span className="text-sm truncate">{url}</span>
-                  <Button 
-                    type="button" 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={() => removeReferenceUrl(index)}
-                  >
-                    Remove
-                  </Button>
-                </div>
-              ))}
+          
+          <Textarea
+            value={newReference.notes}
+            onChange={(e) => setNewReference({...newReference, notes: e.target.value})}
+            placeholder="Notes about this reference (optional)"
+            rows={2}
+          />
+          
+          <Button 
+            type="button" 
+            variant="outline" 
+            onClick={addReference}
+            className="w-full"
+          >
+            Add Reference
+          </Button>
+          
+          {references.length > 0 && (
+            <div className="border rounded-md overflow-hidden">
+              <div className="bg-muted/50 p-2 font-medium text-sm">
+                References ({references.length})
+              </div>
+              <div className="p-2 space-y-2">
+                {references.map(ref => (
+                  <div key={ref.id} className="flex justify-between items-center border-b pb-2">
+                    <div>
+                      <div className="flex items-center">
+                        {getReferenceIcon(ref.type)}
+                        <span className="ml-1 font-medium">{ref.title}</span>
+                        <Badge variant="outline" className="ml-2 text-xs">
+                          {ref.type}
+                        </Badge>
+                      </div>
+                      {ref.url && (
+                        <div className="text-xs text-blue-500">
+                          <a href={ref.url} target="_blank" rel="noopener noreferrer">
+                            {ref.url}
+                          </a>
+                        </div>
+                      )}
+                      {ref.notes && (
+                        <div className="text-xs text-muted-foreground mt-1">
+                          {ref.notes.substring(0, 60)}{ref.notes.length > 60 ? '...' : ''}
+                        </div>
+                      )}
+                    </div>
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => removeReference(ref.id)}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>

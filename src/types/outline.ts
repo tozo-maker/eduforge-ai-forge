@@ -60,6 +60,14 @@ export interface OutlineNote {
   color?: string;
 }
 
+export interface Reference {
+  id: string;
+  title: string;
+  url?: string;
+  notes?: string;
+  type: 'article' | 'book' | 'video' | 'website' | 'research';
+}
+
 export interface OutlineNode {
   id: string;
   title: string;
@@ -89,6 +97,9 @@ export interface Outline {
   version: number;
   parentVersionId?: string;
   structureType?: StructureType;
+  relationships?: Relationship[];
+  references?: Reference[];
+  nodeReferences?: Record<string, string[]>; // Maps node IDs to reference IDs
 }
 
 export type AIModelType = 
