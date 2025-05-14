@@ -17,9 +17,7 @@ import ProtectedRoute from '@/components/ProtectedRoute';
 import Content from '@/pages/Content';
 import MainLayout from '@/components/layout/MainLayout';
 import NewProject from '@/pages/NewProject';
-import './App.css';
 import OutlinePage from '@/pages/OutlinePage';
-import Index from '@/pages/Index';
 
 function App() {
   return (
@@ -36,16 +34,17 @@ function App() {
                 <Route path="/verify-email" element={<VerifyEmail />} />
                 
                 {/* Protected Routes */}
-                <Route element={<ProtectedRoute>
-                  <Outlet />
-                </ProtectedRoute>}>
+                <Route element={
+                  <ProtectedRoute>
+                    <Outlet />
+                  </ProtectedRoute>
+                }>
                   <Route element={<MainLayout />}>
                     <Route path="/dashboard" element={<Dashboard />} />
                     <Route path="/projects/new" element={<NewProject />} />
                     <Route path="/projects/:projectId" element={<Content />} />
                     <Route path="/projects/:projectId/outline" element={<OutlinePage />} />
                     <Route path="/projects/:projectId/content" element={<Content />} />
-                    <Route index element={<Index />} />
                   </Route>
                 </Route>
                 
