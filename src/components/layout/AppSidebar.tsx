@@ -11,17 +11,60 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarTrigger
+  useSidebar
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-import { Home, BookOpen, FolderOpen, FileText, Settings, Plus } from "lucide-react";
+import { Home, FolderOpen, Plus, BookOpen, Settings, FileText } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 export function AppSidebar() {
   const location = useLocation();
+  const { state } = useSidebar();
   
   const isActive = (path: string) => {
     return location.pathname === path || location.pathname.startsWith(`${path}/`);
+  };
+
+  const menuItems = [
+    { icon: Home, label: "Dashboard", path: "/dashboard" },
+    { icon: FolderOpen, label: "My Projects", path: "/projects" },
+    { icon: Plus, label: "New Project", path: "/projects/new" },
+    { icon: BookOpen, label: "Templates", path: "/templates" },
+    { icon: FileText, label: "My Content", path: "/content" },
+  ];
+
+  const renderMenuItem = (item: { icon: React.ElementType, label: string, path: string }) => {
+    const Icon = item.icon;
+    const active = isActive(item.path);
+    
+    return (
+      <SidebarMenuItem key={item.path}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <SidebarMenuButton 
+              className={cn(
+                "w-full justify-start gap-3", 
+                active && "bg-accent text-accent-foreground font-medium"
+              )}
+              asChild
+            >
+              <Link to={item.path} aria-current={active ? "page" : undefined}>
+                <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <span>{item.label}</span>
+              </Link>
+            </SidebarMenuButton>
+          </TooltipTrigger>
+          <TooltipContent 
+            side="right" 
+            className="z-50"
+            hidden={state !== "collapsed"}
+          >
+            {item.label}
+          </TooltipContent>
+        </Tooltip>
+      </SidebarMenuItem>
+    );
   };
 
   return (
@@ -29,65 +72,11 @@ export function AppSidebar() {
       <SidebarHeader className="flex h-16 items-center px-6 border-b">
         <span className="font-bold text-lg text-primary">EduForge AI</span>
       </SidebarHeader>
-      <SidebarContent>
+      <SidebarContent className="py-2">
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton 
-                  className={cn("w-full justify-start", isActive("/dashboard") && "bg-accent text-accent-foreground font-medium")} 
-                  asChild
-                >
-                  <Link to="/dashboard">
-                    <Home className="mr-2 h-4 w-4" />
-                    <span>Dashboard</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton 
-                  className={cn("w-full justify-start", isActive("/projects") && "bg-accent text-accent-foreground font-medium")} 
-                  asChild
-                >
-                  <Link to="/projects">
-                    <FolderOpen className="mr-2 h-4 w-4" />
-                    <span>My Projects</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton 
-                  className={cn("w-full justify-start", isActive("/projects/new") && "bg-accent text-accent-foreground font-medium")} 
-                  asChild
-                >
-                  <Link to="/projects/new">
-                    <Plus className="mr-2 h-4 w-4" />
-                    <span>New Project</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton 
-                  className={cn("w-full justify-start", isActive("/templates") && "bg-accent text-accent-foreground font-medium")} 
-                  asChild
-                >
-                  <Link to="/templates">
-                    <BookOpen className="mr-2 h-4 w-4" />
-                    <span>Templates</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton 
-                  className={cn("w-full justify-start", isActive("/content") && "bg-accent text-accent-foreground font-medium")} 
-                  asChild
-                >
-                  <Link to="/content">
-                    <FileText className="mr-2 h-4 w-4" />
-                    <span>My Content</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+              {menuItems.map(renderMenuItem)}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -96,22 +85,36 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton 
-                  className={cn("w-full justify-start", isActive("/settings") && "bg-accent text-accent-foreground font-medium")} 
-                  asChild
-                >
-                  <Link to="/settings">
-                    <Settings className="mr-2 h-4 w-4" />
-                    <span>Settings</span>
-                  </Link>
-                </SidebarMenuButton>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <SidebarMenuButton 
+                      className={cn(
+                        "w-full justify-start gap-3", 
+                        isActive("/settings") && "bg-accent text-accent-foreground font-medium"
+                      )} 
+                      asChild
+                    >
+                      <Link to="/settings" aria-current={isActive("/settings") ? "page" : undefined}>
+                        <Settings className="h-4 w-4 shrink-0" aria-hidden="true" />
+                        <span>Settings</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </TooltipTrigger>
+                  <TooltipContent 
+                    side="right"
+                    className="z-50" 
+                    hidden={state !== "collapsed"}
+                  >
+                    Settings
+                  </TooltipContent>
+                </Tooltip>
               </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter className="p-6 text-xs text-muted-foreground">
-        <p>© 2025 EduForge AI</p>
+      <SidebarFooter className="p-6 mt-auto">
+        <p className="text-xs text-muted-foreground">© 2025 EduForge AI</p>
       </SidebarFooter>
     </Sidebar>
   );
