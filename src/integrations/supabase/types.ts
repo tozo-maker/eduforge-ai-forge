@@ -9,7 +9,132 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      educational_standards: {
+        Row: {
+          category: string | null
+          code: string
+          created_at: string
+          description: string
+          grade_level: string
+          id: string
+          subject: string
+        }
+        Insert: {
+          category?: string | null
+          code: string
+          created_at?: string
+          description: string
+          grade_level: string
+          id?: string
+          subject: string
+        }
+        Update: {
+          category?: string | null
+          code?: string
+          created_at?: string
+          description?: string
+          grade_level?: string
+          id?: string
+          subject?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          email: string
+          full_name: string | null
+          id: string
+          organization: string | null
+          role: string | null
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          email: string
+          full_name?: string | null
+          id: string
+          organization?: string | null
+          role?: string | null
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string
+          full_name?: string | null
+          id?: string
+          organization?: string | null
+          role?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      projects: {
+        Row: {
+          accessibility: string[] | null
+          assessment_type: string | null
+          content: Json | null
+          created_at: string
+          cultural_context: string | null
+          description: string | null
+          duration: string | null
+          grade_level: string | null
+          id: string
+          is_template: boolean | null
+          learning_objectives: string[] | null
+          pedagogical_approach: string | null
+          standards: string[] | null
+          subject: string | null
+          title: string
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          accessibility?: string[] | null
+          assessment_type?: string | null
+          content?: Json | null
+          created_at?: string
+          cultural_context?: string | null
+          description?: string | null
+          duration?: string | null
+          grade_level?: string | null
+          id?: string
+          is_template?: boolean | null
+          learning_objectives?: string[] | null
+          pedagogical_approach?: string | null
+          standards?: string[] | null
+          subject?: string | null
+          title: string
+          type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          accessibility?: string[] | null
+          assessment_type?: string | null
+          content?: Json | null
+          created_at?: string
+          cultural_context?: string | null
+          description?: string | null
+          duration?: string | null
+          grade_level?: string | null
+          id?: string
+          is_template?: boolean | null
+          learning_objectives?: string[] | null
+          pedagogical_approach?: string | null
+          standards?: string[] | null
+          subject?: string | null
+          title?: string
+          type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
