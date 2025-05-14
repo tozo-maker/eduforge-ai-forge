@@ -52,12 +52,15 @@ export function OutlineEditor({ outline, standards = [], onSave }: OutlineEditor
   const [editingNode, setEditingNode] = useState<string | null>(null);
   const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
   const [dropTargetId, setDropTargetId] = useState<string | null>(null);
+  const [dragOverNodeType, setDragOverNodeType] = useState<'before' | 'inside' | 'after' | null>(null);
+  const [showDragGuides, setShowDragGuides] = useState(true);
   const [showRelationships, setShowRelationships] = useState<boolean>(false);
   const [showGapAnalysis, setShowGapAnalysis] = useState<boolean>(false);
   const [showWordOptimizer, setShowWordOptimizer] = useState<boolean>(false);
   const [showStandardsVerifier, setShowStandardsVerifier] = useState<boolean>(false);
   const [showReferenceIntegrator, setShowReferenceIntegrator] = useState<boolean>(false);
   const [validationIssues, setValidationIssues] = useState<string[]>([]);
+  const dragNodeRef = useRef<OutlineNode | null>(null);
 
   // Validate outline structural coherence whenever the outline changes
   useEffect(() => {
@@ -220,10 +223,12 @@ export function OutlineEditor({ outline, standards = [], onSave }: OutlineEditor
   };
 
   // Drag and Drop Handlers
-  const handleDragStart = (e: React.DragEvent<HTMLDivElement>, nodeId: string) => {
+  const handleDragStart = (e: React.DragEvent<HTMLDivElement>, nodeId: string, node: OutlineNode) => {
+    e.stopPropagation();
     e.dataTransfer.setData("text/plain", nodeId);
     e.dataTransfer.effectAllowed = "move";
     setDraggingNodeId(nodeId);
+    dragNodeRef.current = node;
     
     // Delay adding dragging class to avoid flickering
     setTimeout(() => {
@@ -234,103 +239,198 @@ export function OutlineEditor({ outline, standards = [], onSave }: OutlineEditor
   
   const handleDragEnd = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
+    e.stopPropagation();
+    
     if (draggingNodeId) {
       const element = document.getElementById(`node-${draggingNodeId}`);
       if (element) element.classList.remove("dragging");
       setDraggingNodeId(null);
     }
+    
     setDropTargetId(null);
+    setDragOverNodeType(null);
+    dragNodeRef.current = null;
     
     // Remove all drop target indicators
-    document.querySelectorAll('.drop-target').forEach((el) => {
-      el.classList.remove('drop-target');
+    document.querySelectorAll('.drop-target, .drop-before, .drop-after, .drop-inside').forEach((el) => {
+      el.classList.remove('drop-target', 'drop-before', 'drop-after', 'drop-inside');
     });
   };
   
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>, nodeId: string) => {
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>, nodeId: string, node: OutlineNode) => {
     e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
+    e.stopPropagation();
     
+    if (!showDragGuides) return;
     if (draggingNodeId === nodeId) return; // Can't drop onto self
     
+    // Don't allow drop if node is a child of the dragged node (would create a circular reference)
+    if (isChildOf(node, draggingNodeId)) return;
+    
+    e.dataTransfer.dropEffect = "move";
     setDropTargetId(nodeId);
     
-    // Add visual indicator to drop target
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const y = e.clientY - rect.top;
+    const height = rect.height;
+    
+    const element = document.getElementById(`node-${nodeId}`);
+    if (!element) return;
+    
+    // Clean previous indicators
+    document.querySelectorAll('.drop-target, .drop-before, .drop-after, .drop-inside').forEach((el) => {
+      if (el.id !== `node-${nodeId}`) {
+        el.classList.remove('drop-target', 'drop-before', 'drop-after', 'drop-inside');
+      }
+    });
+    
+    // Determine drop position
+    if (y < height * 0.25) {
+      // Drop before
+      element.classList.add('drop-before');
+      element.classList.remove('drop-after', 'drop-inside');
+      setDragOverNodeType('before');
+    } else if (y > height * 0.75) {
+      // Drop after
+      element.classList.add('drop-after');
+      element.classList.remove('drop-before', 'drop-inside');
+      setDragOverNodeType('after');
+    } else {
+      // Drop inside
+      element.classList.add('drop-inside');
+      element.classList.remove('drop-before', 'drop-after');
+      setDragOverNodeType('inside');
+    }
+  };
+  
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>, nodeId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
     const element = document.getElementById(`node-${nodeId}`);
     if (element) {
-      document.querySelectorAll('.drop-target').forEach((el) => {
-        if (el.id !== `node-${nodeId}`) el.classList.remove('drop-target');
-      });
-      element.classList.add('drop-target');
+      element.classList.remove('drop-before', 'drop-after', 'drop-inside');
     }
+    
+    if (dropTargetId === nodeId) {
+      setDropTargetId(null);
+      setDragOverNodeType(null);
+    }
+  };
+  
+  // Check if a node is a child of another node
+  const isChildOf = (node: OutlineNode, potentialParentId: string): boolean => {
+    if (node.id === potentialParentId) return true;
+    return node.children.some(child => isChildOf(child, potentialParentId));
+  };
+  
+  // Find a node by ID in the outline
+  const findNodeById = (nodes: OutlineNode[], nodeId: string): OutlineNode | null => {
+    for (const node of nodes) {
+      if (node.id === nodeId) return node;
+      
+      const found = findNodeById(node.children, nodeId);
+      if (found) return found;
+    }
+    return null;
+  };
+  
+  // Find the parent node of a given node ID
+  const findParentNode = (nodes: OutlineNode[], nodeId: string, parent: OutlineNode | null = null): OutlineNode | null => {
+    for (const node of nodes) {
+      if (node.id === nodeId) return parent;
+      
+      const found = findParentNode(node.children, nodeId, node);
+      if (found) return found;
+    }
+    return null;
   };
   
   const handleDrop = (e: React.DragEvent<HTMLDivElement>, targetId: string) => {
     e.preventDefault();
+    e.stopPropagation();
     
     const sourceId = e.dataTransfer.getData("text/plain");
-    if (!sourceId || sourceId === targetId) return;
+    if (!sourceId || sourceId === targetId || !dragOverNodeType) return;
     
-    // Clear visual indicators
-    document.querySelectorAll('.dragging, .drop-target').forEach((el) => {
-      el.classList.remove('dragging', 'drop-target');
+    // Clean visual indicators
+    document.querySelectorAll('.dragging, .drop-before, .drop-after, .drop-inside, .drop-target').forEach((el) => {
+      el.classList.remove('dragging', 'drop-before', 'drop-after', 'drop-inside', 'drop-target');
     });
     
-    // Find source node and remove from current position
-    let sourceNode: OutlineNode | null = null;
+    // Clone the current outline structure
+    const updatedOutline = JSON.parse(JSON.stringify(editableOutline)) as Outline;
     
-    const findAndRemoveSource = (nodes: OutlineNode[]): OutlineNode[] => {
-      return nodes.filter(node => {
-        if (node.id === sourceId) {
-          sourceNode = {...node};
-          return false;
-        }
-        if (node.children.length > 0) {
-          node.children = findAndRemoveSource(node.children);
-        }
-        return true;
-      });
-    };
+    // Find the source node and target node
+    const sourceNode = findNodeById(updatedOutline.rootNodes, sourceId);
+    const targetNode = findNodeById(updatedOutline.rootNodes, targetId);
     
-    const updatedRootNodes = findAndRemoveSource([...editableOutline.rootNodes]);
-    
-    if (!sourceNode) {
-      console.error("Source node not found", sourceId);
+    if (!sourceNode || !targetNode) {
+      console.error("Source or target node not found", sourceId, targetId);
       return;
     }
     
-    // Find target node and add source as its child
-    const addSourceToTarget = (nodes: OutlineNode[]): boolean => {
-      for (let i = 0; i < nodes.length; i++) {
-        if (nodes[i].id === targetId) {
-          // Add as child of target node
-          nodes[i].children.push(sourceNode!);
-          setExpandedNodes(prev => new Set([...prev, targetId])); // Expand the target node
-          return true;
-        }
-        if (nodes[i].children.length > 0 && addSourceToTarget(nodes[i].children)) {
-          return true;
-        }
-      }
-      return false;
-    };
+    // Find the parent of the source node
+    const sourceParent = findParentNode(updatedOutline.rootNodes, sourceId);
     
-    // Try to add to target
-    const targetFound = addSourceToTarget(updatedRootNodes);
-    
-    // If target not found in tree, add source as a root node
-    if (!targetFound) {
-      updatedRootNodes.push(sourceNode);
+    // Remove the source node from its current position
+    if (sourceParent) {
+      sourceParent.children = sourceParent.children.filter(child => child.id !== sourceId);
+    } else {
+      // It's a root node
+      updatedOutline.rootNodes = updatedOutline.rootNodes.filter(node => node.id !== sourceId);
     }
     
-    setEditableOutline(prev => ({
-      ...prev,
-      rootNodes: updatedRootNodes,
+    // Place the node in the new position based on dragOverNodeType
+    switch (dragOverNodeType) {
+      case 'inside':
+        // Add as child of target node
+        targetNode.children.push(sourceNode);
+        setExpandedNodes(prev => new Set([...prev, targetId])); // Expand the target node
+        break;
+        
+      case 'before':
+      case 'after': {
+        const targetParent = findParentNode(updatedOutline.rootNodes, targetId);
+        
+        if (targetParent) {
+          // Find the index of the target in its parent's children
+          const targetIndex = targetParent.children.findIndex(child => child.id === targetId);
+          
+          // Insert before or after
+          const insertIndex = dragOverNodeType === 'before' ? targetIndex : targetIndex + 1;
+          targetParent.children.splice(insertIndex, 0, sourceNode);
+        } else {
+          // Target is a root node
+          const targetIndex = updatedOutline.rootNodes.findIndex(node => node.id === targetId);
+          const insertIndex = dragOverNodeType === 'before' ? targetIndex : targetIndex + 1;
+          updatedOutline.rootNodes.splice(insertIndex, 0, sourceNode);
+        }
+        break;
+      }
+    }
+    
+    // Validate the new structure before saving
+    const issues = validateOutlineCoherence(updatedOutline);
+    
+    if (issues.filter(issue => issue.includes('circular')).length > 0) {
+      toast({
+        title: "Invalid Operation",
+        description: "This move would create a circular reference in the outline structure.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // Update the outline structure
+    setEditableOutline({
+      ...updatedOutline,
       updatedAt: new Date()
-    }));
+    });
     
     setDraggingNodeId(null);
     setDropTargetId(null);
+    setDragOverNodeType(null);
     
     // Show success toast
     toast({
@@ -406,13 +506,12 @@ export function OutlineEditor({ outline, standards = [], onSave }: OutlineEditor
       <div 
         id={`node-${node.id}`}
         key={node.id}
-        className={`outline-node relative ${draggingNodeId === node.id ? 'opacity-50' : ''} ${
-          dropTargetId === node.id ? 'bg-primary-100 border-primary' : ''
-        }`}
+        className={`outline-node relative mb-2 ${draggingNodeId === node.id ? 'opacity-50' : ''}`}
         draggable={true}
-        onDragStart={(e) => handleDragStart(e, node.id)}
+        onDragStart={(e) => handleDragStart(e, node.id, node)}
         onDragEnd={handleDragEnd}
-        onDragOver={(e) => handleDragOver(e, node.id)}
+        onDragOver={(e) => handleDragOver(e, node.id, node)}
+        onDragLeave={(e) => handleDragLeave(e, node.id)}
         onDrop={(e) => handleDrop(e, node.id)}
       >
         <div 
@@ -748,7 +847,11 @@ export function OutlineEditor({ outline, standards = [], onSave }: OutlineEditor
               
               <div className="ml-auto flex items-center space-x-2">
                 <Label htmlFor="dragdrop-hint" className="text-xs text-muted-foreground">Show drag-drop hints</Label>
-                <Switch id="dragdrop-hint" />
+                <Switch 
+                  id="dragdrop-hint" 
+                  checked={showDragGuides}
+                  onCheckedChange={setShowDragGuides}
+                />
               </div>
             </div>
             
@@ -812,6 +915,15 @@ export function OutlineEditor({ outline, standards = [], onSave }: OutlineEditor
         .outline-node .drop-target {
           background-color: rgba(59, 130, 246, 0.1);
           border: 2px dashed #3b82f6;
+        }
+        .outline-node.drop-before {
+          border-top: 2px solid #3b82f6;
+        }
+        .outline-node.drop-after {
+          border-bottom: 2px solid #3b82f6;
+        }
+        .outline-node.drop-inside {
+          background-color: rgba(59, 130, 246, 0.1);
         }
       `}} />
     </div>

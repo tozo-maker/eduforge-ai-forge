@@ -1,43 +1,45 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Progress } from '@/components/ui/progress';
-import { BarChart3, RefreshCw } from 'lucide-react';
+import { BarChart3, RefreshCw, PieChart, BarChart, Scale, Lightbulb } from 'lucide-react';
 import { Outline, OutlineNode } from '@/types/outline';
 import { toast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
 interface WordCountOptimizerProps {
   outline: Outline;
   onUpdateOutline: (outline: Outline) => void;
 }
 
+interface NodeDistribution {
+  id: string;
+  title: string;
+  path: string;
+  wordCount: number;
+  adjustedWordCount: number;
+  percentage: number;
+  depth: number;
+  type: string;
+  recommendedWordCount?: number;
+}
+
 export function WordCountOptimizer({ outline, onUpdateOutline }: WordCountOptimizerProps) {
-  const [nodeDistribution, setNodeDistribution] = useState<Array<{
-    id: string;
-    title: string;
-    path: string;
-    wordCount: number;
-    adjustedWordCount: number;
-    percentage: number;
-    depth: number;
-  }>>([]);
-  
+  const [nodeDistribution, setNodeDistribution] = useState<NodeDistribution[]>([]);
   const [totalWordCount, setTotalWordCount] = useState(0);
   const [targetTotalWords, setTargetTotalWords] = useState(0);
+  const [optimizationStrategy, setOptimizationStrategy] = useState<
+    'balance' | 'relative-depth' | 'type-based' | 'custom'
+  >('balance');
+  const [chartView, setChartView] = useState<'list' | 'chart'>('list');
+  
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   
   // Initialize distribution data
   useEffect(() => {
-    const nodes: Array<{
-      id: string;
-      title: string;
-      path: string;
-      wordCount: number;
-      adjustedWordCount: number;
-      percentage: number;
-      depth: number;
-    }> = [];
+    const nodes: NodeDistribution[] = [];
     
     let totalWords = 0;
     
@@ -52,9 +54,10 @@ export function WordCountOptimizer({ outline, onUpdateOutline }: WordCountOptimi
         title: node.title,
         path: nodePath,
         wordCount: node.estimatedWordCount,
-        adjustedWordCount: node.estimatedWordCount, // Initially same as original
-        percentage: 0, // Will calculate after traversal
-        depth
+        adjustedWordCount: node.estimatedWordCount,
+        percentage: 0,
+        depth,
+        type: node.type
       });
       
       node.children.forEach(child => traverseNodes(child, nodePath, depth + 1));
@@ -71,6 +74,70 @@ export function WordCountOptimizer({ outline, onUpdateOutline }: WordCountOptimi
     setTargetTotalWords(totalWords);
     setNodeDistribution(nodes);
   }, [outline]);
+  
+  // Update the chart visualization when distribution changes
+  useEffect(() => {
+    if (chartView === 'chart' && canvasRef.current) {
+      renderChart();
+    }
+  }, [nodeDistribution, chartView]);
+  
+  // Simple chart rendering function
+  const renderChart = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Only visualize top-level nodes
+    const rootNodes = nodeDistribution.filter(node => node.depth === 0);
+    
+    // Set up chart dimensions
+    const chartHeight = canvas.height - 40;
+    const barWidth = canvas.width / (rootNodes.length * 3);
+    const gapWidth = barWidth / 2;
+    
+    // Draw bars for each root node
+    rootNodes.forEach((node, index) => {
+      const x = index * (barWidth * 3) + barWidth;
+      
+      // Original word count
+      const originalHeight = (node.wordCount / Math.max(...rootNodes.map(n => n.wordCount))) * chartHeight;
+      ctx.fillStyle = 'rgba(100, 116, 139, 0.6)';
+      ctx.fillRect(x, canvas.height - originalHeight, barWidth, originalHeight);
+      
+      // Adjusted word count
+      const adjustedHeight = (node.adjustedWordCount / Math.max(...rootNodes.map(n => Math.max(n.adjustedWordCount, n.wordCount)))) * chartHeight;
+      ctx.fillStyle = node.adjustedWordCount > node.wordCount ? 'rgba(34, 197, 94, 0.6)' : 'rgba(239, 68, 68, 0.6)';
+      ctx.fillRect(x + barWidth + gapWidth, canvas.height - adjustedHeight, barWidth, adjustedHeight);
+      
+      // Draw node title
+      ctx.fillStyle = 'black';
+      ctx.font = '10px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(
+        node.title.substring(0, 15) + (node.title.length > 15 ? '...' : ''), 
+        x + barWidth, 
+        canvas.height - 5
+      );
+    });
+    
+    // Draw legend
+    ctx.fillStyle = 'rgba(100, 116, 139, 0.6)';
+    ctx.fillRect(10, 10, 15, 15);
+    ctx.fillStyle = 'black';
+    ctx.textAlign = 'left';
+    ctx.fillText('Original', 30, 20);
+    
+    ctx.fillStyle = 'rgba(34, 197, 94, 0.6)';
+    ctx.fillRect(100, 10, 15, 15);
+    ctx.fillStyle = 'black';
+    ctx.fillText('Adjusted', 120, 20);
+  };
   
   // Handle slider change for a specific node
   const handleSliderChange = (index: number, value: number[]) => {
@@ -142,6 +209,7 @@ export function WordCountOptimizer({ outline, onUpdateOutline }: WordCountOptimi
     const resetDistribution = nodeDistribution.map(node => ({
       ...node,
       adjustedWordCount: node.wordCount,
+      recommendedWordCount: undefined,
       percentage: totalWordCount > 0 ? (node.wordCount / totalWordCount) * 100 : 0
     }));
     
@@ -149,50 +217,115 @@ export function WordCountOptimizer({ outline, onUpdateOutline }: WordCountOptimi
     setTargetTotalWords(totalWordCount);
   };
   
-  // Automatically balance word distribution
-  const handleAutoBalance = () => {
-    // Identify top-level nodes to balance
-    const rootNodeIds = new Set(outline.rootNodes.map(node => node.id));
+  // Calculate recommended word counts based on different optimization strategies
+  const calculateRecommendedCounts = (strategy: 'balance' | 'relative-depth' | 'type-based' | 'custom') => {
+    const updatedDistribution = [...nodeDistribution];
+    let changedNodes = 0;
     
-    // Find root nodes in the distribution
-    const rootNodes = nodeDistribution.filter(node => rootNodeIds.has(node.id));
-    
-    if (rootNodes.length <= 1) {
-      toast({
-        description: "Need multiple root sections to balance content."
-      });
-      return;
+    switch(strategy) {
+      case 'balance': {
+        // Identify top-level nodes to balance
+        const rootNodes = updatedDistribution.filter(node => node.depth === 0);
+        
+        if (rootNodes.length <= 1) {
+          toast({
+            description: "Need multiple root sections to balance content."
+          });
+          return;
+        }
+        
+        // Calculate average word count for root nodes
+        const avgWordCount = Math.round(rootNodes.reduce((sum, node) => sum + node.wordCount, 0) / rootNodes.length);
+        
+        // Adjust root nodes toward the average
+        updatedDistribution.forEach(node => {
+          if (node.depth === 0) {
+            // Move 70% toward the average
+            const diff = avgWordCount - node.wordCount;
+            const adjustment = Math.round(diff * 0.7);
+            node.recommendedWordCount = Math.max(50, node.wordCount + adjustment);
+            node.adjustedWordCount = node.recommendedWordCount;
+            changedNodes++;
+          }
+        });
+        
+        toast({
+          description: "Word counts balanced across root sections."
+        });
+        break;
+      }
+      
+      case 'relative-depth': {
+        // Allocate more words to deeper nodes to create detailed subsections
+        // and fewer words to higher-level nodes for more concise section summaries
+        const maxDepth = Math.max(...updatedDistribution.map(node => node.depth));
+        const baseWordCount = totalWordCount / updatedDistribution.length;
+        
+        updatedDistribution.forEach(node => {
+          // More detailed as depth increases (reversed from what you might expect)
+          const depthFactor = node.depth === 0 ? 0.7 : (1 + (node.depth / maxDepth) * 0.5);
+          node.recommendedWordCount = Math.max(50, Math.round(node.wordCount * depthFactor));
+          node.adjustedWordCount = node.recommendedWordCount;
+          changedNodes++;
+        });
+        
+        toast({
+          description: "Word counts optimized based on node depth."
+        });
+        break;
+      }
+      
+      case 'type-based': {
+        // Different node types get different word count targets
+        updatedDistribution.forEach(node => {
+          let typeFactor = 1.0;
+          
+          switch(node.type) {
+            case 'section':
+              typeFactor = 0.8; // Sections are concise summaries
+              break;
+            case 'subsection':
+              typeFactor = 1.0; // Subsections are normal length
+              break;
+            case 'topic':
+              typeFactor = 1.2; // Topics get more detail
+              break;
+            case 'activity':
+              typeFactor = 1.5; // Activities need detailed instructions
+              break;
+            case 'assessment':
+              typeFactor = 1.3; // Assessments need detailed questions
+              break;
+            default:
+              typeFactor = 1.0;
+          }
+          
+          node.recommendedWordCount = Math.max(50, Math.round(node.wordCount * typeFactor));
+          node.adjustedWordCount = node.recommendedWordCount;
+          changedNodes++;
+        });
+        
+        toast({
+          description: "Word counts optimized based on content type."
+        });
+        break;
+      }
+      
+      case 'custom':
+        // This is handled through direct slider adjustments
+        return;
     }
     
-    // Calculate average word count for root nodes
-    const avgWordCount = Math.round(rootNodes.reduce((sum, node) => sum + node.wordCount, 0) / rootNodes.length);
-    
-    // Create a balanced distribution
-    const balancedDistribution = [...nodeDistribution];
-    
-    // Adjust root nodes toward the average
-    balancedDistribution.forEach(node => {
-      if (rootNodeIds.has(node.id)) {
-        // Move 70% toward the average
-        const diff = avgWordCount - node.wordCount;
-        const adjustment = Math.round(diff * 0.7);
-        node.adjustedWordCount = Math.max(50, node.wordCount + adjustment);
-      }
-    });
-    
     // Recalculate total and percentages
-    const newTotal = balancedDistribution.reduce((sum, node) => sum + node.adjustedWordCount, 0);
+    const newTotal = updatedDistribution.reduce((sum, node) => sum + node.adjustedWordCount, 0);
     setTargetTotalWords(newTotal);
     
-    balancedDistribution.forEach(node => {
+    updatedDistribution.forEach(node => {
       node.percentage = newTotal > 0 ? (node.adjustedWordCount / newTotal) * 100 : 0;
     });
     
-    setNodeDistribution(balancedDistribution);
-    
-    toast({
-      description: "Word counts balanced across root sections."
-    });
+    setNodeDistribution(updatedDistribution);
+    setOptimizationStrategy(strategy);
   };
 
   return (
@@ -205,9 +338,32 @@ export function WordCountOptimizer({ outline, onUpdateOutline }: WordCountOptimi
               <RefreshCw className="h-3.5 w-3.5 mr-1" />
               Reset
             </Button>
-            <Button variant="outline" size="sm" onClick={handleAutoBalance}>
-              <BarChart3 className="h-3.5 w-3.5 mr-1" />
-              Auto Balance
+            <Button 
+              variant={optimizationStrategy === 'balance' ? "secondary" : "outline"} 
+              size="sm" 
+              onClick={() => calculateRecommendedCounts('balance')}
+              title="Balance word counts across top-level sections"
+            >
+              <Scale className="h-3.5 w-3.5 mr-1" />
+              Balance
+            </Button>
+            <Button 
+              variant={optimizationStrategy === 'relative-depth' ? "secondary" : "outline"}
+              size="sm" 
+              onClick={() => calculateRecommendedCounts('relative-depth')}
+              title="Allocate words based on node depth in the hierarchy"
+            >
+              <BarChart className="h-3.5 w-3.5 mr-1" />
+              By Depth
+            </Button>
+            <Button 
+              variant={optimizationStrategy === 'type-based' ? "secondary" : "outline"}
+              size="sm" 
+              onClick={() => calculateRecommendedCounts('type-based')}
+              title="Optimize based on node type (section, topic, activity, etc)"
+            >
+              <Lightbulb className="h-3.5 w-3.5 mr-1" />
+              By Type
             </Button>
             <Button size="sm" onClick={handleApplyChanges}>
               Apply Changes
@@ -218,49 +374,84 @@ export function WordCountOptimizer({ outline, onUpdateOutline }: WordCountOptimi
       <CardContent className="pb-2">
         <div className="flex justify-between mb-4 text-sm">
           <div>Original: <strong>{totalWordCount}</strong> words</div>
+          <div>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-6 px-2" 
+              onClick={() => setChartView(chartView === 'list' ? 'chart' : 'list')}
+            >
+              {chartView === 'list' ? (
+                <><BarChart3 className="h-3.5 w-3.5 mr-1" /> Show Chart</>
+              ) : (
+                <><BarChart3 className="h-3.5 w-3.5 mr-1" /> Show List</>
+              )}
+            </Button>
+          </div>
           <div>Target: <strong>{targetTotalWords}</strong> words</div>
-          <div>Difference: <strong>{targetTotalWords - totalWordCount}</strong> words</div>
+          <div>Difference: <strong className={cn(
+            targetTotalWords > totalWordCount ? "text-green-500" : 
+            targetTotalWords < totalWordCount ? "text-amber-500" : ""
+          )}>
+            {targetTotalWords > totalWordCount ? "+" : ""}
+            {targetTotalWords - totalWordCount}
+          </strong> words</div>
         </div>
         
-        <div className="space-y-4 max-h-64 overflow-y-auto pr-2">
-          {nodeDistribution.map((node, index) => (
-            <div 
-              key={node.id} 
-              className="space-y-1.5"
-              style={{ paddingLeft: `${node.depth * 16}px` }}
-            >
-              <div className="flex justify-between text-sm">
-                <div className="font-medium truncate max-w-xs">{node.title}</div>
-                <div className="flex gap-2">
-                  <span className="text-muted-foreground">{node.adjustedWordCount} words</span>
-                  <span className={`${
-                    Math.abs(node.adjustedWordCount - node.wordCount) > 0 ? 
-                      node.adjustedWordCount > node.wordCount ? 'text-green-500' : 'text-amber-500' : 
-                      'text-muted-foreground'
-                  }`}>
-                    {node.adjustedWordCount !== node.wordCount ? 
-                      (node.adjustedWordCount > node.wordCount ? '+' : '') + 
-                      (node.adjustedWordCount - node.wordCount) : 
-                      ''}
-                  </span>
+        {chartView === 'chart' ? (
+          <div className="flex justify-center mb-4">
+            <canvas ref={canvasRef} width="600" height="300" className="border rounded" />
+          </div>
+        ) : (
+          <div className="space-y-4 max-h-64 overflow-y-auto pr-2">
+            {nodeDistribution.map((node, index) => (
+              <div 
+                key={node.id} 
+                className="space-y-1.5"
+                style={{ paddingLeft: `${node.depth * 16}px` }}
+              >
+                <div className="flex justify-between text-sm">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="text-xs">{node.type}</Badge>
+                    <div className="font-medium truncate max-w-xs">{node.title}</div>
+                  </div>
+                  <div className="flex gap-2">
+                    <span className="text-muted-foreground">{node.adjustedWordCount} words</span>
+                    <span className={`${
+                      Math.abs(node.adjustedWordCount - node.wordCount) > 0 ? 
+                        node.adjustedWordCount > node.wordCount ? 'text-green-500' : 'text-amber-500' : 
+                        'text-muted-foreground'
+                    }`}>
+                      {node.adjustedWordCount !== node.wordCount ? 
+                        (node.adjustedWordCount > node.wordCount ? '+' : '') + 
+                        (node.adjustedWordCount - node.wordCount) : 
+                        ''}
+                    </span>
+                  </div>
                 </div>
+                <div className="flex gap-2 items-center">
+                  <Slider
+                    defaultValue={[node.wordCount]}
+                    value={[node.adjustedWordCount]}
+                    max={Math.max(2000, node.wordCount * 2)}
+                    min={Math.max(10, Math.floor(node.wordCount * 0.5))}
+                    step={10}
+                    className="flex-1"
+                    onValueChange={(value) => handleSliderChange(index, value)}
+                  />
+                  <Progress value={node.percentage} className="w-20 h-1.5" />
+                  <div className="text-xs w-12 text-right">{Math.round(node.percentage)}%</div>
+                </div>
+                {node.recommendedWordCount && node.recommendedWordCount !== node.wordCount && (
+                  <div className="text-xs text-blue-600 flex items-center">
+                    <Lightbulb className="h-3 w-3 mr-1" />
+                    Recommendation: {node.recommendedWordCount} words
+                  </div>
+                )}
               </div>
-              <div className="flex gap-2 items-center">
-                <Slider
-                  defaultValue={[node.wordCount]}
-                  value={[node.adjustedWordCount]}
-                  max={Math.max(2000, node.wordCount * 2)}
-                  min={Math.max(10, Math.floor(node.wordCount * 0.5))}
-                  step={10}
-                  className="flex-1"
-                  onValueChange={(value) => handleSliderChange(index, value)}
-                />
-                <Progress value={node.percentage} className="w-20 h-1.5" />
-                <div className="text-xs w-12 text-right">{Math.round(node.percentage)}%</div>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
