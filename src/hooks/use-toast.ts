@@ -1,5 +1,9 @@
+
 import { toast as sonnerToast } from 'sonner';
 import { type ToastProps } from "@/components/ui/toast";
+
+// Create a mock toast array to satisfy the toaster component
+const mockToasts: any[] = [];
 
 // Enhanced Toast function with better typing
 export function toast(props: ToastProps) {
@@ -28,6 +32,7 @@ export function toast(props: ToastProps) {
 // Keep the original hook for compatibility
 export const useToast = () => {
   return {
-    toast
+    toast,
+    toasts: mockToasts
   };
 };
