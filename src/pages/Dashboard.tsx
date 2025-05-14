@@ -1,49 +1,23 @@
-
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
-import { ProjectConfig } from '@/types/project';
-import { BookOpen, FilePlus, FolderPlus, LayoutGrid, Plus, Settings } from 'lucide-react';
 import { ProjectCard } from '@/components/projects/ProjectCard';
 import { Link } from 'react-router-dom';
 import { TemplateCard } from '@/components/projects/TemplateCard';
 import projectTemplates from '@/data/projectTemplates';
+import { BookOpen, FilePlus, FolderPlus, LayoutGrid, Plus, Settings } from 'lucide-react';
+import { useProjects } from '@/hooks/useProjects';
 
 const Dashboard = () => {
   const { user } = useAuth();
-  const [recentProjects, setRecentProjects] = useState<ProjectConfig[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { projects: recentProjects, isLoading, fetchProjects } = useProjects();
 
   useEffect(() => {
-    const fetchProjects = async () => {
-      if (!user) return;
-
-      try {
-        setIsLoading(true);
-        const { data, error } = await supabase
-          .from('projects')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('updated_at', { ascending: false })
-          .limit(4);
-
-        if (error) {
-          console.error('Error fetching projects:', error);
-          return;
-        }
-
-        setRecentProjects(data || []);
-      } catch (error) {
-        console.error('Error:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchProjects();
-  }, [user]);
+    if (user) {
+      fetchProjects();
+    }
+  }, [user, fetchProjects]);
 
   const emptyState = (
     <div className="py-20 text-center">
@@ -109,7 +83,7 @@ const Dashboard = () => {
           </div>
         ) : recentProjects.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {recentProjects.map((project) => (
+            {recentProjects.slice(0, 4).map((project) => (
               <ProjectCard key={project.id} project={project} />
             ))}
           </div>

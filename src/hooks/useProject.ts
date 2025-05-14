@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { ProjectConfig } from '@/types/project';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { dbProjectToAppProject, appProjectToDbProject, DbProject } from '@/utils/projectMapping';
 
 export const useProject = (projectId?: string) => {
   const [project, setProject] = useState<ProjectConfig | null>(null);
@@ -32,7 +33,7 @@ export const useProject = (projectId?: string) => {
         throw new Error(error.message);
       }
 
-      setProject(data as ProjectConfig);
+      setProject(dbProjectToAppProject(data as DbProject));
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Failed to fetch project'));
       toast({
@@ -54,12 +55,14 @@ export const useProject = (projectId?: string) => {
         throw new Error('User not authenticated');
       }
 
+      const dbProjectData = appProjectToDbProject(projectData);
+
       if (project?.id) {
         // Update existing project
         const { data, error } = await supabase
           .from('projects')
           .update({
-            ...projectData,
+            ...dbProjectData,
             updated_at: new Date().toISOString(),
           })
           .eq('id', project.id)
@@ -70,7 +73,7 @@ export const useProject = (projectId?: string) => {
           throw new Error(error.message);
         }
 
-        setProject(data as ProjectConfig);
+        setProject(dbProjectToAppProject(data as DbProject));
         toast({
           title: 'Success',
           description: 'Project updated successfully.',
@@ -81,8 +84,10 @@ export const useProject = (projectId?: string) => {
           .from('projects')
           .insert([
             {
-              ...projectData,
+              ...dbProjectData,
               user_id: user.id,
+              title: projectData.name || 'Untitled Project', // Ensure title is set
+              type: projectData.type || 'lesson_plan', // Ensure type is set
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString(),
             },
@@ -94,7 +99,7 @@ export const useProject = (projectId?: string) => {
           throw new Error(error.message);
         }
 
-        setProject(data as ProjectConfig);
+        setProject(dbProjectToAppProject(data as DbProject));
         toast({
           title: 'Success',
           description: 'Project created successfully.',

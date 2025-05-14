@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { ProjectConfig } from '@/types/project';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { dbProjectToAppProject, DbProject } from '@/utils/projectMapping';
 
 export const useProjects = () => {
   const [projects, setProjects] = useState<ProjectConfig[]>([]);
@@ -34,7 +35,11 @@ export const useProjects = () => {
         throw new Error(error.message);
       }
 
-      setProjects(data as ProjectConfig[]);
+      const appProjects = (data as DbProject[]).map(dbProject => 
+        dbProjectToAppProject(dbProject)
+      );
+      
+      setProjects(appProjects);
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Failed to fetch projects'));
       toast({
