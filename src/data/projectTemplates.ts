@@ -84,6 +84,86 @@ const projectTemplates: ProjectTemplate[] = [
       accessibility: ["screen_reader_friendly", "alternative_text"]
     }
   },
+  {
+    id: "concept-map-guide",
+    name: "Concept Map Guide",
+    description: "Visual study guide that connects key concepts and relationships for better understanding.",
+    type: "study_guide",
+    icon: "grid-2x2",
+    previewImage: "/placeholder.svg",
+    defaultConfig: {
+      type: "study_guide",
+      pedagogicalApproach: "universal_design",
+      accessibility: ["high_contrast", "alternative_text"]
+    }
+  },
+  {
+    id: "discussion-based-lesson",
+    name: "Discussion-Based Lesson",
+    description: "Lesson plan focused on Socratic questioning and student-led discussions.",
+    type: "lesson_plan",
+    icon: "file-text",
+    previewImage: "/placeholder.svg",
+    defaultConfig: {
+      type: "lesson_plan",
+      pedagogicalApproach: "socratic_method",
+      duration: "60_minutes",
+      assessmentType: "formative"
+    }
+  },
+  {
+    id: "cooperative-learning-unit",
+    name: "Cooperative Learning Unit",
+    description: "Unit designed around structured group activities for collaborative learning.",
+    type: "course_module",
+    icon: "folder",
+    previewImage: "/placeholder.svg",
+    defaultConfig: {
+      type: "course_module",
+      pedagogicalApproach: "cooperative_learning",
+      duration: "multi_day",
+      assessmentType: "performance_based"
+    }
+  },
+  {
+    id: "formative-assessment-collection",
+    name: "Formative Assessment Collection",
+    description: "Collection of diverse formative assessment techniques for ongoing feedback.",
+    type: "assessment",
+    icon: "circle-check",
+    previewImage: "/placeholder.svg", 
+    defaultConfig: {
+      type: "assessment",
+      assessmentType: "formative",
+      duration: "15_minutes"
+    }
+  },
+  {
+    id: "performance-rubric-builder",
+    name: "Performance Rubric Builder",
+    description: "Tool to create detailed performance rubrics with measurable criteria.",
+    type: "assessment",
+    icon: "file-text",
+    previewImage: "/placeholder.svg", 
+    defaultConfig: {
+      type: "assessment",
+      assessmentType: "performance_based",
+      duration: "multi_day"
+    }
+  },
+  {
+    id: "curriculum-map",
+    name: "Curriculum Map",
+    description: "Year-long curriculum plan with standards alignment and unit sequencing.",
+    type: "curriculum",
+    icon: "layout-list",
+    previewImage: "/placeholder.svg", 
+    defaultConfig: {
+      type: "curriculum",
+      pedagogicalApproach: "universal_design",
+      duration: "multi_day"
+    }
+  }
 ];
 
 export default projectTemplates;

@@ -98,6 +98,7 @@ export interface ProjectConfig {
   duration: Duration;
   createdAt?: Date;
   updatedAt?: Date;
+  contentStructure?: string;
 }
 
 export interface ProjectTemplate {
