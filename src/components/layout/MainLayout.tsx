@@ -1,11 +1,12 @@
 
 import React from "react";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { Outlet } from "react-router-dom";
+import { SidebarProvider } from "@/components/ui/sidebar";
 import AppHeader from "./AppHeader";
 import AppSidebar from "./AppSidebar";
 
 interface MainLayoutProps {
-  children: React.ReactNode;
+  children?: React.ReactNode;
 }
 
 export function MainLayout({ children }: MainLayoutProps) {
@@ -17,7 +18,7 @@ export function MainLayout({ children }: MainLayoutProps) {
           <AppHeader />
           <main className="flex-1 p-6">
             <div className="container">
-              {children}
+              {children || <Outlet />}
             </div>
           </main>
         </div>
