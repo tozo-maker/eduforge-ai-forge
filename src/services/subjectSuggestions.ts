@@ -21,7 +21,7 @@ export const getComplementarySubjects = (
     social_studies: ['language_arts', 'arts', 'foreign_language'],
     foreign_language: ['language_arts', 'social_studies', 'arts'],
     arts: ['language_arts', 'social_studies', 'science'],
-    physical_education: ['science', 'social_studies', 'health'],
+    physical_education: ['science', 'social_studies', 'mathematics'],
     computer_science: ['mathematics', 'science', 'arts'],
     other: ['language_arts', 'mathematics', 'science'],
   };
