@@ -24,6 +24,12 @@ const Dashboard = () => {
     );
   }, [recentProjects, searchQuery]);
 
+  // Create proper event handlers that call fetchProjects
+  const handleRefresh = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    fetchProjects();
+  };
+
   return (
     <div className="space-y-8">
       {/* Header Section */}
@@ -55,7 +61,7 @@ const Dashboard = () => {
               variant="ghost" 
               size="sm" 
               className="text-sm gap-2" 
-              onClick={fetchProjects}
+              onClick={handleRefresh}
               disabled={isRetrying}
               aria-label="Refresh projects"
             >
@@ -78,7 +84,7 @@ const Dashboard = () => {
             <p className="text-muted-foreground mt-2">There was a problem loading your projects. Please try again.</p>
             <Button 
               variant="outline" 
-              onClick={fetchProjects}
+              onClick={handleRefresh}
               className="mt-4 gap-2"
               disabled={isRetrying}
               aria-label="Retry loading projects"
