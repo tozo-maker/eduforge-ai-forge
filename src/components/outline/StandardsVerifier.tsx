@@ -1,9 +1,10 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { CheckCircle2, AlertCircle, Link, Search, AlertTriangle, ArrowRight } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Link, Search, AlertTriangle, ArrowRight, X } from 'lucide-react';
 import { Outline, OutlineNode } from '@/types/outline';
 import { EducationalStandard } from '@/types/project';
 import { Input } from '@/components/ui/input';

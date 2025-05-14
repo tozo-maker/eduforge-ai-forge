@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
 import { BarChart3, RefreshCw, PieChart, BarChart, Scale, Lightbulb } from 'lucide-react';
 import { Outline, OutlineNode } from '@/types/outline';
 import { toast } from '@/hooks/use-toast';
