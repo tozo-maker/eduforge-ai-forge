@@ -1,5 +1,5 @@
 
-import { OutlineGenerationParams, Outline, OutlineNode, TaxonomyLevel, OutlineNodeType } from '@/types/outline';
+import { OutlineGenerationParams, Outline, OutlineNode, TaxonomyLevel, OutlineNodeType, DifficultyLevel } from '@/types/outline';
 import { toast } from '@/hooks/use-toast';
 import { ProjectConfig, EducationalStandard } from '@/types/project';
 

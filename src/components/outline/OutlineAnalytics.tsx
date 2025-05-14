@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { BarChart, LineChart, PieChart } from 'lucide-react';
-import { Outline, OutlineNode } from '@/types/outline';
+import { Outline, OutlineNode, OutlineNodeType } from '@/types/outline';
 import { EducationalStandard } from '@/types/project';
 import { analyzeStandardsCoverage } from '@/services/outlineGeneration';
 

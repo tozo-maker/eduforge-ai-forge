@@ -1,8 +1,11 @@
+
 import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 import { Toaster } from '@/components/ui/toaster';
 import { ThemeProvider } from '@/components/theme-provider';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { TranslationProvider } from '@/contexts/TranslationContext';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { queryClient } from '@/lib/react-query';
 import Login from '@/pages/auth/Login';
 import Register from '@/pages/auth/Register';
 import ResetPassword from '@/pages/auth/ResetPassword';
@@ -15,8 +18,6 @@ import Content from '@/pages/Content';
 import MainLayout from '@/components/layout/MainLayout';
 import NewProject from '@/pages/NewProject';
 import './App.css';
-import { QueryClientProvider } from 'react-query';
-import { queryClient } from '@/lib/react-query';
 import OutlinePage from '@/pages/OutlinePage';
 import Index from '@/pages/Index';
 
@@ -26,7 +27,7 @@ function App() {
       <TranslationProvider>
         <AuthProvider>
           <QueryClientProvider client={queryClient}>
-            <BrowserRouter>
+            <Router>
               <Routes>
                 <Route path="/" element={<Landing />} />
                 <Route path="/login" element={<Login />} />
@@ -35,7 +36,9 @@ function App() {
                 <Route path="/verify-email" element={<VerifyEmail />} />
                 
                 {/* Protected Routes */}
-                <Route element={<ProtectedRoute />}>
+                <Route element={<ProtectedRoute>
+                  <Outlet />
+                </ProtectedRoute>}>
                   <Route element={<MainLayout />}>
                     <Route path="/dashboard" element={<Dashboard />} />
                     <Route path="/projects/new" element={<NewProject />} />
@@ -48,7 +51,7 @@ function App() {
                 
                 <Route path="*" element={<NotFound />} />
               </Routes>
-            </BrowserRouter>
+            </Router>
             <Toaster />
           </QueryClientProvider>
         </AuthProvider>
