@@ -805,7 +805,7 @@ export function OutlineEditor({ outline, standards = [], onSave }: OutlineEditor
         onUpdateOutline={setEditableOutline}
       />
       
-      <style jsx="true">{`
+      <style dangerouslySetInnerHTML={{ __html: `
         .outline-node.dragging {
           opacity: 0.5;
         }
@@ -813,7 +813,7 @@ export function OutlineEditor({ outline, standards = [], onSave }: OutlineEditor
           background-color: rgba(59, 130, 246, 0.1);
           border: 2px dashed #3b82f6;
         }
-      `}</style>
+      `}} />
     </div>
   );
 }
