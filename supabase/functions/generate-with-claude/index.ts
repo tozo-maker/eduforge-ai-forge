@@ -11,6 +11,28 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Rate limiting state
+const rateLimits = {
+  requests: new Map<string, number[]>(), // clientKey -> timestamp[]
+  maxRequests: 5, // Maximum requests per window
+  windowMs: 60000, // Window size in milliseconds (1 minute)
+};
+
+// Check if a request should be rate limited
+function checkRateLimit(clientId: string): boolean {
+  const now = Date.now();
+  const clientRequests = rateLimits.requests.get(clientId) || [];
+  
+  // Filter out requests older than our window
+  const recentRequests = clientRequests.filter(timestamp => now - timestamp < rateLimits.windowMs);
+  
+  // Update request list
+  rateLimits.requests.set(clientId, [...recentRequests, now]);
+  
+  // Check if we've exceeded the limit
+  return recentRequests.length < rateLimits.maxRequests;
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -18,7 +40,19 @@ serve(async (req) => {
   }
 
   try {
-    const { prompt, model = 'claude-3-haiku', projectConfig, structureType } = await req.json();
+    const clientId = req.headers.get('x-client-info') || req.headers.get('user-agent') || 'anonymous';
+    const { prompt, model = 'claude-3-haiku', projectConfig, structureType, referenceUrls = [], references = [] } = await req.json();
+
+    // Check rate limits
+    if (!checkRateLimit(clientId)) {
+      return new Response(
+        JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }),
+        { 
+          status: 429, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
 
     if (!anthropicApiKey) {
       return new Response(
@@ -30,20 +64,28 @@ serve(async (req) => {
       );
     }
 
+    // Extract references for context
+    const referenceContext = processReferences(references, referenceUrls);
+
     // Create a system prompt that guides Claude to generate educational content
     const systemPrompt = `You are an expert educational content outline generator. 
 Your task is to create a detailed, well-structured outline for educational content.
+
+${referenceContext}
+
 Follow these guidelines:
 - Structure the content in a ${structureType || 'sequential'} format
-- Match the outline to the grade level: ${projectConfig.gradeLevel || 'unspecified'}
-- Align with subject area: ${projectConfig.subject || 'unspecified'}
+- Match the outline to the grade level: ${projectConfig?.gradeLevel || 'unspecified'}
+- Align with subject area: ${projectConfig?.subject || 'unspecified'}
 - Include learning objectives that address the standards provided
 - Create appropriate assessment points
 - Estimate realistic word counts and durations for each section
 - Maintain consistent educational taxonomy levels
-- Return the response in valid JSON format that matches the OutlineNode interface
+- Return the response in valid JSON format as an array of OutlineNode objects
 
 The outline should be comprehensive yet clear, with logical progression through concepts.`;
+
+    console.log("Calling Anthropic Claude API with model:", model);
 
     // Make API call to Anthropic Claude
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -74,11 +116,36 @@ The outline should be comprehensive yet clear, with logical progression through 
     const data = await response.json();
     
     if (!response.ok) {
-      throw new Error(`Anthropic API error: ${JSON.stringify(data)}`);
+      console.error("Anthropic API error:", data);
+      
+      // Handle different error types
+      let status = 500;
+      let errorMessage = "Error calling Anthropic API";
+      
+      if (data?.error?.type === "authentication_error") {
+        status = 401;
+        errorMessage = "Authentication error with Anthropic API";
+      } else if (data?.error?.type === "rate_limit_error") {
+        status = 429;
+        errorMessage = "Rate limit exceeded for Anthropic API";
+      } else if (data?.error?.type === "invalid_request_error") {
+        status = 400;
+        errorMessage = data?.error?.message || "Invalid request to Anthropic API";
+      }
+      
+      throw new Error(`Anthropic API error: ${errorMessage}`);
     }
 
     // Process and return the generated content
-    const generatedOutline = data.content?.[0]?.text || "{}";
+    const generatedOutline = data.content?.[0]?.text || "[]";
+    
+    // Do basic validation of the response to ensure it's properly formed
+    try {
+      // Just check if it's valid JSON, don't need to store the result
+      JSON.parse(generatedOutline);
+    } catch (e) {
+      console.warn("Claude didn't return valid JSON. Raw response:", generatedOutline.substring(0, 200) + "...");
+    }
     
     return new Response(
       JSON.stringify({
@@ -92,12 +159,53 @@ The outline should be comprehensive yet clear, with logical progression through 
     );
   } catch (error) {
     console.error('Error in generate-with-claude function:', error);
+    
+    // Determine appropriate status code
+    let status = 500;
+    let errorMessage = error.message || "Unknown error";
+    
+    if (errorMessage.includes("authentication")) {
+      status = 401; 
+    } else if (errorMessage.includes("rate limit")) {
+      status = 429;
+    }
+    
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: errorMessage }),
       { 
-        status: 500,
+        status: status,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );
   }
 });
+
+// Process references to provide context to Claude
+function processReferences(references = [], referenceUrls = []): string {
+  if (references.length === 0 && referenceUrls.length === 0) {
+    return '';
+  }
+  
+  let context = 'Consider these reference materials in your outline creation:\n\n';
+  
+  // Process structured references
+  if (references.length > 0) {
+    references.forEach((ref, index) => {
+      context += `Reference ${index + 1}: ${ref.title}\n`;
+      if (ref.url) context += `URL: ${ref.url}\n`;
+      if (ref.type) context += `Type: ${ref.type}\n`;
+      if (ref.notes) context += `Notes: ${ref.notes}\n`;
+      context += '\n';
+    });
+  } 
+  // Process simple URL references if no structured references
+  else if (referenceUrls.length > 0) {
+    context += 'Reference URLs:\n';
+    referenceUrls.forEach((url, index) => {
+      context += `${index + 1}. ${url}\n`;
+    });
+    context += '\n';
+  }
+  
+  return context;
+}
