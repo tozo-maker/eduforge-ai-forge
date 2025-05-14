@@ -1,4 +1,3 @@
-
 export type ProjectType = 
   | "lesson_plan" 
   | "course_module" 
@@ -95,9 +94,10 @@ export interface LanguageConfig {
 
 export interface EducationalStandard {
   id: string;
-  description: string;
+  description?: string;
   organization?: string;
   category?: string;
+  keywords?: string[]; // Add the keywords property to fix the TypeScript error
 }
 
 export interface ProjectConfig {

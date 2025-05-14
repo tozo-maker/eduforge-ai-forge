@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -806,7 +805,7 @@ export function OutlineEditor({ outline, standards = [], onSave }: OutlineEditor
         onUpdateOutline={setEditableOutline}
       />
       
-      <style jsx global>{`
+      <style jsx="true">{`
         .outline-node.dragging {
           opacity: 0.5;
         }

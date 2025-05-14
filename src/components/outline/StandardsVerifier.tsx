@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -124,10 +123,20 @@ export function StandardsVerifier({
       // Check if node description/title matches standard keywords
       let isRelevant = false;
       
-      if (standard.keywords) {
+      if (standard.keywords && standard.keywords.length > 0) {
         for (const keyword of standard.keywords) {
           if (node.title.toLowerCase().includes(keyword.toLowerCase()) || 
               (node.description && node.description.toLowerCase().includes(keyword.toLowerCase()))) {
+            isRelevant = true;
+            break;
+          }
+        }
+      } else if (standard.description) {
+        // If no keywords available, use words from the description as potential matches
+        const descWords = standard.description.toLowerCase().split(/\s+/).filter(w => w.length > 4);
+        for (const word of descWords) {
+          if (node.title.toLowerCase().includes(word) || 
+              (node.description && node.description.toLowerCase().includes(word))) {
             isRelevant = true;
             break;
           }
