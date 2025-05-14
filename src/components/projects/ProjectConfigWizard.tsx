@@ -1,6 +1,16 @@
 
 import React, { useState } from 'react';
-import { ProjectConfig, ProjectTemplate, EducationalStandard } from '@/types/project';
+import { 
+  ProjectConfig, 
+  ProjectTemplate, 
+  EducationalStandard, 
+  StructureType, 
+  UserProfile,
+  LanguageConfig,
+  CulturalContext,
+  TerminologyType,
+  AccessibilityFeature
+} from '@/types/project';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -9,10 +19,9 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ContentStructureVisualizer } from '@/components/projects/ContentStructureVisualizer';
 import { StandardsIntegration } from '@/components/projects/StandardsIntegration';
-import { UserExperienceProfile, UserProfile } from '@/components/projects/UserExperienceProfile';
+import { UserExperienceProfile } from '@/components/projects/UserExperienceProfile';
 import { LanguageAccessibilityConfig } from '@/components/projects/LanguageAccessibilityConfig';
-import { Form } from '@/components/ui/form';
-import { ChevronRight, ChevronLeft, ArrowRight, Check, File, Book, MessageCircle, Sparkles, Globe, Settings } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Check, File, Book, MessageCircle, Sparkles, Globe, Settings } from 'lucide-react';
 
 interface ProjectConfigWizardProps {
   template?: ProjectTemplate;
@@ -36,7 +45,7 @@ export function ProjectConfigWizard({ template, onSave, onCancel }: ProjectConfi
     accessibility: template?.defaultConfig?.accessibility || [],
     assessmentType: template?.defaultConfig?.assessmentType || 'formative',
     duration: template?.defaultConfig?.duration || '45_minutes',
-    contentStructure: 'sequential'
+    contentStructure: 'sequential' as StructureType
   });
 
   const [userProfile, setUserProfile] = useState<UserProfile>({
@@ -46,11 +55,11 @@ export function ProjectConfigWizard({ template, onSave, onCancel }: ProjectConfi
     adaptOverTime: true
   });
 
-  const [languageConfig, setLanguageConfig] = useState({
+  const [languageConfig, setLanguageConfig] = useState<LanguageConfig>({
     readabilityLevel: 6,
-    culturalContext: 'general',
-    terminology: 'standard',
-    accessibilityFeatures: ['screen_reader_friendly']
+    culturalContext: 'general' as CulturalContext,
+    terminology: 'standard' as TerminologyType,
+    accessibilityFeatures: ['screen_reader_friendly'] as AccessibilityFeature[]
   });
 
   const handleConfigChange = (field: string, value: any) => {
@@ -78,7 +87,7 @@ export function ProjectConfigWizard({ template, onSave, onCancel }: ProjectConfi
     handleConfigChange('standards', standards);
   };
 
-  const handleContentStructureChange = (structure: string) => {
+  const handleContentStructureChange = (structure: StructureType) => {
     handleConfigChange('contentStructure', structure);
   };
 
@@ -210,7 +219,7 @@ export function ProjectConfigWizard({ template, onSave, onCancel }: ProjectConfi
               <p className="text-muted-foreground">Enter the basic information about your project</p>
             </div>
 
-            <Form className="space-y-6">
+            <div className="space-y-6">
               <div className="grid gap-4">
                 <div className="space-y-2">
                   <label htmlFor="project-name" className="text-sm font-medium">
@@ -371,7 +380,7 @@ export function ProjectConfigWizard({ template, onSave, onCancel }: ProjectConfi
                   </Select>
                 </div>
               </div>
-            </Form>
+            </div>
           </TabsContent>
 
           <TabsContent value="standards" className="p-6">
@@ -393,7 +402,7 @@ export function ProjectConfigWizard({ template, onSave, onCancel }: ProjectConfi
             </div>
 
             <ContentStructureVisualizer
-              selectedStructure={projectConfig.contentStructure || 'sequential'}
+              selectedStructure={projectConfig.contentStructure as StructureType || 'sequential'}
               onStructureChange={(structure) => handleContentStructureChange(structure)}
             />
           </TabsContent>

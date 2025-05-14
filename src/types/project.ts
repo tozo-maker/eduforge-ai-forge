@@ -75,6 +75,24 @@ export type Duration =
   | "90_minutes"
   | "multi_day";
 
+export type StructureType =
+  | "sequential"
+  | "hierarchical"
+  | "modular"
+  | "spiral";
+
+export type TerminologyType = 
+  | "simple" 
+  | "standard" 
+  | "academic";
+
+export interface LanguageConfig {
+  readabilityLevel: number;
+  culturalContext: CulturalContext;
+  terminology: TerminologyType;
+  accessibilityFeatures: AccessibilityFeature[];
+}
+
 export interface EducationalStandard {
   id: string;
   description: string;
@@ -98,7 +116,7 @@ export interface ProjectConfig {
   duration: Duration;
   createdAt?: Date;
   updatedAt?: Date;
-  contentStructure?: string;
+  contentStructure?: StructureType;
 }
 
 export interface ProjectTemplate {
@@ -109,4 +127,11 @@ export interface ProjectTemplate {
   icon: string;
   previewImage?: string;
   defaultConfig: Partial<ProjectConfig>;
+}
+
+export interface UserProfile {
+  expertiseLevel: 'beginner' | 'intermediate' | 'advanced';
+  interactionStyle: 'guided' | 'collaborative' | 'autonomous';
+  detailLevel: number;
+  adaptOverTime: boolean;
 }

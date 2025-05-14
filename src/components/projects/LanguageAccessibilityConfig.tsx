@@ -8,15 +8,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AccessibilityFeature, CulturalContext } from '@/types/project';
+import { AccessibilityFeature, CulturalContext, TerminologyType, LanguageConfig } from '@/types/project';
 import { RefreshCw, MessageSquare, Globe, FileText } from "lucide-react";
-
-interface LanguageConfig {
-  readabilityLevel: number; // 1-10 scale
-  culturalContext: CulturalContext;
-  terminology: 'simple' | 'standard' | 'academic';
-  accessibilityFeatures: AccessibilityFeature[];
-}
 
 interface LanguageAccessibilityConfigProps {
   config: LanguageConfig;
@@ -149,7 +142,7 @@ export function LanguageAccessibilityConfig({
               <RadioGroup
                 value={config.terminology}
                 onValueChange={(value) => 
-                  handleConfigChange('terminology', value as 'simple' | 'standard' | 'academic')
+                  handleConfigChange('terminology', value as TerminologyType)
                 }
               >
                 <div className="flex items-center space-x-2">
