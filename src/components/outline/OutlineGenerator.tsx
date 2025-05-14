@@ -15,9 +15,14 @@ import { toast } from '@/hooks/use-toast';
 interface OutlineGeneratorProps {
   projectConfig: ProjectConfig;
   onOutlineGenerated: (outline: Outline) => void;
+  selectedStructure?: 'sequential' | 'hierarchical' | 'modular' | 'spiral';
 }
 
-export function OutlineGenerator({ projectConfig, onOutlineGenerated }: OutlineGeneratorProps) {
+export function OutlineGenerator({ 
+  projectConfig, 
+  onOutlineGenerated,
+  selectedStructure = 'sequential'
+}: OutlineGeneratorProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationParams, setGenerationParams] = useState<OutlineGenerationParams>({
     projectConfig,
@@ -26,10 +31,19 @@ export function OutlineGenerator({ projectConfig, onOutlineGenerated }: OutlineG
     includeAssessments: true,
     includeActivities: true,
     focusAreas: [],
-    referenceUrls: []
+    referenceUrls: [],
+    structureType: selectedStructure
   });
   const [focusArea, setFocusArea] = useState('');
   const [referenceUrl, setReferenceUrl] = useState('');
+
+  // Update generation params when selected structure changes
+  React.useEffect(() => {
+    setGenerationParams(prev => ({
+      ...prev,
+      structureType: selectedStructure
+    }));
+  }, [selectedStructure]);
 
   const handleParamChange = <K extends keyof OutlineGenerationParams>(
     key: K, 
@@ -78,7 +92,8 @@ export function OutlineGenerator({ projectConfig, onOutlineGenerated }: OutlineG
       
       const outline = await generateOutline({
         ...generationParams,
-        projectConfig
+        projectConfig,
+        structureType: selectedStructure // Ensure we're using the latest structure
       });
       
       if (outline) {
@@ -111,6 +126,16 @@ export function OutlineGenerator({ projectConfig, onOutlineGenerated }: OutlineG
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        <div className="bg-muted/30 p-3 rounded-md border mb-4">
+          <div className="flex items-center gap-2 text-sm">
+            <Lightbulb className="h-4 w-4 text-amber-500" />
+            <span className="font-medium">Using {selectedStructure} structure</span>
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">
+            Your outline will be generated based on the {selectedStructure} structure selected above.
+          </p>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="model">AI Model</Label>

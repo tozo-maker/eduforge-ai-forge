@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useProject } from '@/hooks/useProject';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -12,17 +12,19 @@ import {
   Layers, 
   ChevronLeft,
   Edit,
-  Save
+  Save,
+  FileSymlink
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import { Outline } from '@/types/outline';
+import { Outline, OutlineNode } from '@/types/outline';
 import { OutlineGenerator } from '@/components/outline/OutlineGenerator';
 import { OutlineEditor } from '@/components/outline/OutlineEditor';
 import { OutlineAnalytics } from '@/components/outline/OutlineAnalytics';
 import { OutlineVersioning } from '@/components/outline/OutlineVersioning';
-import { calculateTotalWordCount, calculateTotalDuration } from '@/services/outlineGeneration';
+import { calculateTotalWordCount, calculateTotalDuration, generateOutlineNodes } from '@/services/outlineGeneration';
 import { saveOutlineVersion } from '@/services/outlineVersioning';
 import { standardsDatabase } from '@/data/standardsDatabase';
+import { ContentStructureVisualizer } from '@/components/projects/ContentStructureVisualizer';
 
 export default function OutlinePage() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -30,6 +32,7 @@ export default function OutlinePage() {
   const { project, isLoading } = useProject(projectId);
   const [outline, setOutline] = useState<Outline | null>(null);
   const [activeTab, setActiveTab] = useState('generate');
+  const [contentStructure, setContentStructure] = useState<'sequential' | 'hierarchical' | 'modular' | 'spiral'>('sequential');
 
   // Handle generation of a new outline
   const handleOutlineGenerated = (newOutline: Outline) => {
@@ -53,6 +56,32 @@ export default function OutlinePage() {
   // Handle creating a branch
   const handleBranchCreate = (branchedOutline: Outline) => {
     setOutline(branchedOutline);
+  };
+
+  // Generate preview outline nodes based on selected structure
+  const generatePreviewOutline = (structure: 'sequential' | 'hierarchical' | 'modular' | 'spiral'): OutlineNode[] => {
+    if (!project) return [];
+    
+    // Simulate outline nodes based on structure type
+    return generateOutlineNodes(
+      project, 
+      'medium', 
+      true, 
+      true, 
+      0, 
+      []
+    ).slice(0, structure === 'modular' ? 6 : 4); // Limit to a few nodes for preview
+  };
+
+  // Handle structure change
+  const handleStructureChange = (structure: 'sequential' | 'hierarchical' | 'modular' | 'spiral') => {
+    setContentStructure(structure);
+    
+    // Show toast notification when structure changes
+    toast({
+      title: "Structure Updated",
+      description: `Content structure set to ${structure}`,
+    });
   };
 
   // Get project standards
@@ -130,6 +159,14 @@ export default function OutlinePage() {
         )}
       </div>
       
+      {/* Content Structure Visualizer - Now integrated with the outline system */}
+      <ContentStructureVisualizer 
+        selectedStructure={contentStructure}
+        onStructureChange={handleStructureChange}
+        outlineNodes={outline?.rootNodes || generatePreviewOutline(contentStructure)}
+        onVisualizeOutline={generatePreviewOutline}
+      />
+      
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="mb-6">
           <TabsTrigger value="generate" className="flex items-center gap-1.5">
@@ -165,7 +202,8 @@ export default function OutlinePage() {
         <TabsContent value="generate">
           <OutlineGenerator 
             projectConfig={project} 
-            onOutlineGenerated={handleOutlineGenerated} 
+            onOutlineGenerated={handleOutlineGenerated}
+            selectedStructure={contentStructure} 
           />
         </TabsContent>
         

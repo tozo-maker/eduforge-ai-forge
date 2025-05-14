@@ -24,9 +24,23 @@ export type DifficultyLevel =
   | 'advanced'
   | 'expert';
 
+export type StructureType = 
+  | 'sequential'
+  | 'hierarchical'
+  | 'modular'
+  | 'spiral';
+
 export interface Prerequisite {
   id: string;
   title: string;
+  description?: string;
+}
+
+export interface Relationship {
+  id: string;
+  fromNodeId: string;
+  toNodeId: string;
+  type: 'prerequisite' | 'supports' | 'extends' | 'references';
   description?: string;
 }
 
@@ -61,6 +75,7 @@ export interface OutlineNode {
   prerequisites?: Prerequisite[];
   assessmentPoints?: AssessmentPoint[];
   notes?: OutlineNote[];
+  relationships?: Relationship[];
 }
 
 export interface Outline {
@@ -73,6 +88,7 @@ export interface Outline {
   updatedAt: Date;
   version: number;
   parentVersionId?: string;
+  structureType?: StructureType;
 }
 
 export type AIModelType = 
@@ -90,6 +106,7 @@ export interface OutlineGenerationParams {
   includeActivities: boolean;
   focusAreas?: string[];
   referenceUrls?: string[];
+  structureType?: StructureType;
 }
 
 export interface OutlineVersion {
@@ -99,4 +116,18 @@ export interface OutlineVersion {
   data: Outline;
   createdAt: Date;
   message?: string;
+}
+
+export interface ComparisonResult {
+  added: number;
+  removed: number;
+  modified: number;
+  details?: {
+    addedNodes: OutlineNode[];
+    removedNodes: OutlineNode[];
+    modifiedNodes: {
+      before: OutlineNode;
+      after: OutlineNode;
+    }[];
+  }
 }

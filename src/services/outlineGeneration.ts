@@ -1,4 +1,3 @@
-
 import { OutlineGenerationParams, Outline, OutlineNode, TaxonomyLevel, OutlineNodeType, DifficultyLevel } from '@/types/outline';
 import { toast } from '@/hooks/use-toast';
 import { ProjectConfig, EducationalStandard } from '@/types/project';
@@ -8,12 +7,13 @@ export const generateOutline = async (params: OutlineGenerationParams): Promise<
   try {
     // This would be replaced with actual API call to Anthropic Claude
     console.log('Generating outline with model:', params.model);
+    console.log('Using structure type:', params.structureType || 'sequential');
     
     // Simulate API delay
     await new Promise(resolve => setTimeout(resolve, 2000));
     
     // Generate a mock outline based on project configuration
-    const { projectConfig, detailLevel } = params;
+    const { projectConfig, detailLevel, structureType = 'sequential' } = params;
     
     // Create outline structure based on project configuration
     const outline: Outline = {
@@ -21,10 +21,19 @@ export const generateOutline = async (params: OutlineGenerationParams): Promise<
       projectId: projectConfig.id || crypto.randomUUID(),
       title: `${projectConfig.name} Outline`,
       description: `AI-generated outline for ${projectConfig.name}`,
-      rootNodes: generateOutlineNodes(projectConfig, detailLevel, params.includeAssessments, params.includeActivities),
+      rootNodes: generateOutlineNodes(
+        projectConfig, 
+        detailLevel, 
+        params.includeAssessments, 
+        params.includeActivities,
+        0,
+        [],
+        structureType
+      ),
       createdAt: new Date(),
       updatedAt: new Date(),
-      version: 1
+      version: 1,
+      structureType: structureType
     };
     
     return outline;
@@ -40,36 +49,108 @@ export const generateOutline = async (params: OutlineGenerationParams): Promise<
 };
 
 // Recursively generate outline nodes based on project configuration
-const generateOutlineNodes = (
+export const generateOutlineNodes = (
   config: ProjectConfig, 
   detailLevel: string,
   includeAssessments: boolean,
   includeActivities: boolean,
   depth: number = 0,
-  parentStandards: string[] = []
+  parentStandards: string[] = [],
+  structureType: 'sequential' | 'hierarchical' | 'modular' | 'spiral' = 'sequential'
 ): OutlineNode[] => {
-  if (depth > (detailLevel === 'detailed' ? 3 : detailLevel === 'medium' ? 2 : 1)) {
+  // Determine how deep to go based on detail level
+  const maxDepth = detailLevel === 'detailed' ? 3 : detailLevel === 'medium' ? 2 : 1;
+  if (depth > maxDepth) {
     return [];
   }
   
-  const nodeCount = detailLevel === 'detailed' ? 5 : detailLevel === 'medium' ? 3 : 2;
+  // Adjust node count based on structure type and detail level
+  let nodeCount = 0;
+  
+  switch (structureType) {
+    case 'sequential':
+      nodeCount = detailLevel === 'detailed' ? 5 : detailLevel === 'medium' ? 3 : 2;
+      break;
+    case 'hierarchical':
+      // Hierarchical has more nodes at the top levels, fewer at deeper levels
+      nodeCount = depth === 0 ? 
+        (detailLevel === 'detailed' ? 4 : 3) : 
+        (detailLevel === 'detailed' ? 3 : 2);
+      break;
+    case 'modular':
+      // Modular has a more consistent number of nodes
+      nodeCount = detailLevel === 'detailed' ? 6 : detailLevel === 'medium' ? 4 : 2;
+      break;
+    case 'spiral':
+      // Spiral revisits topics, so it's more dependent on depth
+      nodeCount = depth === 0 ? 
+        (detailLevel === 'detailed' ? 4 : 3) : 
+        (depth === 1 ? (detailLevel === 'detailed' ? 3 : 2) : 2);
+      break;
+    default:
+      nodeCount = detailLevel === 'detailed' ? 5 : detailLevel === 'medium' ? 3 : 2;
+  }
+  
   const nodes: OutlineNode[] = [];
   
   // Distribute learning objectives across sections
   const objectives = [...(config.learningObjectives || [])];
   const standardIds = [...(parentStandards.length > 0 ? parentStandards : 
-    config.standards?.map(std => std.id) || [])];
+    config.standards?.map(std => typeof std === 'object' ? std.id : std) || [])];
   
   for (let i = 0; i < nodeCount; i++) {
     const objective = objectives.length > i ? objectives[i] : `Topic ${i + 1}`;
-    const taxonomyLevel = getTaxonomyLevel(depth);
-    const isLastLevel = depth === (detailLevel === 'detailed' ? 3 : detailLevel === 'medium' ? 2 : 1);
+    const taxonomyLevel = getTaxonomyLevel(depth, structureType);
+    const isLastLevel = depth === maxDepth;
     
-    // Determine node type based on depth
+    // Determine node type based on depth and structure
     let nodeType: OutlineNodeType = 'section';
-    if (depth === 1) nodeType = 'subsection';
-    else if (depth === 2) nodeType = 'topic';
-    else if (depth >= 3) nodeType = i % 2 === 0 ? 'activity' : 'assessment';
+    
+    switch (structureType) {
+      case 'sequential':
+        // Sequential is straightforward progression
+        if (depth === 1) nodeType = 'subsection';
+        else if (depth === 2) nodeType = 'topic';
+        else if (depth >= 3) nodeType = i % 2 === 0 ? 'activity' : 'assessment';
+        break;
+        
+      case 'hierarchical':
+        // Hierarchical has clear levels
+        if (depth === 0) nodeType = 'section';
+        else if (depth === 1) nodeType = 'subsection';
+        else if (depth === 2) nodeType = 'topic';
+        else nodeType = i % 2 === 0 ? 'activity' : 'assessment';
+        break;
+        
+      case 'modular':
+        // Modular has more independent units
+        nodeType = depth === 0 ? 'section' : 'topic';
+        if (depth >= 2) nodeType = i % 2 === 0 ? 'activity' : 'resource';
+        break;
+        
+      case 'spiral':
+        // Spiral revisits with increasing complexity
+        nodeType = depth === 0 ? 'section' : 'topic';
+        if (depth >= 2) nodeType = (i + depth) % 2 === 0 ? 'activity' : 'assessment';
+        break;
+        
+      default:
+        if (depth === 1) nodeType = 'subsection';
+        else if (depth === 2) nodeType = 'topic';
+        else if (depth >= 3) nodeType = i % 2 === 0 ? 'activity' : 'assessment';
+    }
+    
+    // Create relationships and prerequisites based on structure
+    const prerequisites: Prerequisite[] = [];
+    
+    if (depth > 0 && (structureType === 'sequential' || structureType === 'spiral')) {
+      // Add prerequisites for sequential and spiral structures
+      prerequisites.push({
+        id: crypto.randomUUID(),
+        title: `Prerequisite ${i + 1}`,
+        description: `Required prior knowledge for ${objective}`
+      });
+    }
     
     // Create node
     const node: OutlineNode = {
@@ -82,23 +163,81 @@ const generateOutlineNodes = (
       children: [],
       standardIds: distributedStandards(standardIds, nodeCount, i),
       taxonomyLevel,
-      difficultyLevel: getDifficultyLevel(depth)
+      difficultyLevel: getDifficultyLevel(depth, structureType),
+      prerequisites: prerequisites.length > 0 ? prerequisites : undefined,
+      notes: depth === 0 ? [
+        {
+          id: crypto.randomUUID(),
+          text: `Planning note for ${objective}`,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          color: '#e2e8f0'
+        }
+      ] : undefined
     };
     
-    // Add children recursively if not at max depth
+    // Add children recursively based on structure
     if (!isLastLevel) {
-      node.children = generateOutlineNodes(
-        config, 
-        detailLevel, 
-        includeAssessments, 
-        includeActivities,
-        depth + 1,
-        node.standardIds
-      );
+      switch (structureType) {
+        case 'hierarchical':
+          // Hierarchical has fewer children deeper down
+          node.children = generateOutlineNodes(
+            config, 
+            detailLevel, 
+            includeAssessments, 
+            includeActivities,
+            depth + 1,
+            node.standardIds,
+            structureType
+          );
+          break;
+          
+        case 'spiral':
+          // Spiral revisits topics with increasing complexity
+          if (depth < 1) { // Only add children at top level for spiral
+            node.children = generateOutlineNodes(
+              config, 
+              detailLevel, 
+              includeAssessments, 
+              includeActivities,
+              depth + 1,
+              node.standardIds,
+              structureType
+            );
+          }
+          break;
+          
+        case 'modular':
+          // Modular has self-contained units with fewer levels
+          if (depth < 1) { // Limit depth for modular structure
+            node.children = generateOutlineNodes(
+              config, 
+              detailLevel, 
+              includeAssessments, 
+              includeActivities,
+              depth + 1,
+              node.standardIds,
+              structureType
+            );
+          }
+          break;
+          
+        default:
+          // Sequential and others
+          node.children = generateOutlineNodes(
+            config, 
+            detailLevel, 
+            includeAssessments, 
+            includeActivities,
+            depth + 1,
+            node.standardIds,
+            structureType
+          );
+      }
     }
     
     // Add assessment points for assessment nodes
-    if (includeAssessments && (nodeType === 'assessment' || isLastLevel)) {
+    if ((includeAssessments && (nodeType === 'assessment' || isLastLevel)) || structureType === 'spiral') {
       node.assessmentPoints = [{
         id: crypto.randomUUID(),
         description: `Assessment for ${objective}`,
@@ -169,15 +308,33 @@ const getEstimatedDuration = (nodeType: OutlineNodeType, gradeLevel: string): nu
   return Math.round(baseDuration[nodeType] * gradeMultiplier);
 };
 
-// Map depth to taxonomy level
-const getTaxonomyLevel = (depth: number): TaxonomyLevel => {
+// Map depth to taxonomy level - adjusted for structure type
+const getTaxonomyLevel = (depth: number, structureType?: string): TaxonomyLevel => {
   const levels: TaxonomyLevel[] = ['remember', 'understand', 'apply', 'analyze', 'evaluate', 'create'];
+  
+  if (structureType === 'spiral') {
+    // Spiral revisits with increasing complexity
+    return levels[Math.min(depth + 1, levels.length - 1)];
+  }
+  
+  if (structureType === 'hierarchical') {
+    // Hierarchical has more analytical focus
+    const hierarchicalLevels = ['understand', 'analyze', 'apply', 'evaluate', 'create'];
+    return hierarchicalLevels[Math.min(depth, hierarchicalLevels.length - 1)];
+  }
+  
   return levels[Math.min(depth, levels.length - 1)];
 };
 
-// Map depth to difficulty level
-const getDifficultyLevel = (depth: number): DifficultyLevel => {
+// Map depth to difficulty level - adjusted for structure type
+const getDifficultyLevel = (depth: number, structureType?: string): DifficultyLevel => {
   const levels = ['introductory', 'beginner', 'intermediate', 'advanced', 'expert'];
+  
+  if (structureType === 'spiral') {
+    // Spiral has increasing difficulty
+    return levels[Math.min(depth + 1, levels.length - 1)] as DifficultyLevel;
+  }
+  
   return levels[Math.min(depth, levels.length - 1)] as DifficultyLevel;
 };
 
