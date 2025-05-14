@@ -3,7 +3,7 @@ import React from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ProjectTemplate } from "@/types/project";
-import { Book, BookOpen, FileText, FolderOpen, Grid2X2 } from "lucide-react";
+import { Book, BookOpen, FileText, FolderOpen, Grid2X2, ArrowRight } from "lucide-react";
 
 interface TemplateCardProps {
   template: ProjectTemplate;
@@ -37,7 +37,14 @@ export function TemplateCard({ template, onSelect }: TemplateCardProps) {
   };
 
   return (
-    <Card className="overflow-hidden h-full flex flex-col transition-all hover:shadow-md" onClick={onSelect}>
+    <Card 
+      className="overflow-hidden h-full flex flex-col transition-all hover:shadow-md cursor-pointer border-2 hover:border-primary/30 group"
+      onClick={onSelect}
+      tabIndex={0}
+      role="button"
+      aria-label={`Use ${template.name} template`}
+      onKeyDown={(e) => e.key === 'Enter' && onSelect && onSelect()}
+    >
       <CardHeader className="p-6">
         <div className="flex space-x-3 items-center">
           <div className="p-2 rounded-md bg-primary/10 text-primary">
@@ -57,7 +64,9 @@ export function TemplateCard({ template, onSelect }: TemplateCardProps) {
         </p>
       </CardContent>
       <CardFooter className="p-6 pt-0">
-        <Button className="w-full" onClick={onSelect}>Use Template</Button>
+        <Button className="w-full group-hover:bg-primary gap-2" onClick={onSelect}>
+          Use Template <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+        </Button>
       </CardFooter>
     </Card>
   );

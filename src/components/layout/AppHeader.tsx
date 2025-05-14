@@ -2,7 +2,8 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search } from "lucide-react";
+import { Search, Plus } from "lucide-react";
+import { Link } from "react-router-dom";
 
 export function AppHeader() {
   return (
@@ -22,8 +23,12 @@ export function AppHeader() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm">Help</Button>
-          <Button size="sm">New Project</Button>
+          <Button variant="outline" size="sm" className="hidden sm:flex">Help</Button>
+          <Button size="sm" className="gap-2" asChild>
+            <Link to="/projects/new">
+              <Plus className="h-4 w-4" /> New Project
+            </Link>
+          </Button>
         </div>
       </div>
     </header>

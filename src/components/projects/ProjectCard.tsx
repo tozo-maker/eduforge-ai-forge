@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { ProjectConfig } from "@/types/project";
 import { formatDistanceToNow } from "date-fns";
-import { BookOpen, FileText, Grid2X2, Layout, LayoutList } from "lucide-react";
+import { BookOpen, FileText, Grid2X2, Layout, LayoutList, ArrowRight } from "lucide-react";
 
 interface ProjectCardProps {
   project: ProjectConfig;
@@ -42,7 +42,14 @@ export function ProjectCard({ project, onClick }: ProjectCardProps) {
   };
 
   return (
-    <Card className="overflow-hidden transition-all hover:shadow-md" onClick={onClick}>
+    <Card 
+      className="overflow-hidden transition-all hover:shadow-md cursor-pointer border-2 hover:border-primary/30 group" 
+      onClick={onClick}
+      tabIndex={0}
+      role="button"
+      aria-label={`Open ${project.name} project`}
+      onKeyDown={(e) => e.key === 'Enter' && onClick && onClick()}
+    >
       <CardHeader className="p-6">
         <div className="flex justify-between items-start">
           <div className="flex space-x-2 items-center">
@@ -69,7 +76,7 @@ export function ProjectCard({ project, onClick }: ProjectCardProps) {
         </CardContent>
       )}
       <CardFooter className="p-6 pt-0 flex justify-between">
-        <div className="flex space-x-2">
+        <div className="flex flex-wrap gap-2">
           <div className="text-xs bg-accent rounded-full px-2 py-1">
             {project.gradeLevel}
           </div>
@@ -77,7 +84,9 @@ export function ProjectCard({ project, onClick }: ProjectCardProps) {
             {project.duration.replace('_', ' ')}
           </div>
         </div>
-        <Button size="sm" variant="outline">Open</Button>
+        <Button size="sm" className="group-hover:bg-primary gap-2">
+          Open <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+        </Button>
       </CardFooter>
     </Card>
   );

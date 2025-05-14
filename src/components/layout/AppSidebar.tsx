@@ -14,9 +14,16 @@ import {
   SidebarTrigger
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-import { Home, BookOpen, FolderOpen, FileText, Settings } from "lucide-react";
+import { Home, BookOpen, FolderOpen, FileText, Settings, Plus } from "lucide-react";
+import { Link, useLocation } from "react-router-dom";
 
 export function AppSidebar() {
+  const location = useLocation();
+  
+  const isActive = (path: string) => {
+    return location.pathname === path || location.pathname.startsWith(`${path}/`);
+  };
+
   return (
     <Sidebar>
       <SidebarHeader className="flex h-16 items-center px-6 border-b">
@@ -27,35 +34,58 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton className="w-full justify-start" asChild>
-                  <a href="/">
+                <SidebarMenuButton 
+                  className={cn("w-full justify-start", isActive("/dashboard") && "bg-accent text-accent-foreground font-medium")} 
+                  asChild
+                >
+                  <Link to="/dashboard">
                     <Home className="mr-2 h-4 w-4" />
                     <span>Dashboard</span>
-                  </a>
+                  </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton className="w-full justify-start" asChild>
-                  <a href="/projects">
+                <SidebarMenuButton 
+                  className={cn("w-full justify-start", isActive("/projects") && "bg-accent text-accent-foreground font-medium")} 
+                  asChild
+                >
+                  <Link to="/projects">
                     <FolderOpen className="mr-2 h-4 w-4" />
                     <span>My Projects</span>
-                  </a>
+                  </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton className="w-full justify-start" asChild>
-                  <a href="/templates">
+                <SidebarMenuButton 
+                  className={cn("w-full justify-start", isActive("/projects/new") && "bg-accent text-accent-foreground font-medium")} 
+                  asChild
+                >
+                  <Link to="/projects/new">
+                    <Plus className="mr-2 h-4 w-4" />
+                    <span>New Project</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton 
+                  className={cn("w-full justify-start", isActive("/templates") && "bg-accent text-accent-foreground font-medium")} 
+                  asChild
+                >
+                  <Link to="/templates">
                     <BookOpen className="mr-2 h-4 w-4" />
                     <span>Templates</span>
-                  </a>
+                  </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton className="w-full justify-start" asChild>
-                  <a href="/content">
+                <SidebarMenuButton 
+                  className={cn("w-full justify-start", isActive("/content") && "bg-accent text-accent-foreground font-medium")} 
+                  asChild
+                >
+                  <Link to="/content">
                     <FileText className="mr-2 h-4 w-4" />
                     <span>My Content</span>
-                  </a>
+                  </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
@@ -66,11 +96,14 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton className="w-full justify-start" asChild>
-                  <a href="/settings">
+                <SidebarMenuButton 
+                  className={cn("w-full justify-start", isActive("/settings") && "bg-accent text-accent-foreground font-medium")} 
+                  asChild
+                >
+                  <Link to="/settings">
                     <Settings className="mr-2 h-4 w-4" />
                     <span>Settings</span>
-                  </a>
+                  </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>

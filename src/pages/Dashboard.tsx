@@ -7,15 +7,17 @@ import { ProjectCard } from '@/components/projects/ProjectCard';
 import { Link } from 'react-router-dom';
 import { TemplateCard } from '@/components/projects/TemplateCard';
 import projectTemplates from '@/data/projectTemplates';
-import { BookOpen, FilePlus, FolderPlus, LayoutGrid, Plus, Settings } from 'lucide-react';
+import { BookOpen, FilePlus, FolderPlus, LayoutGrid, Plus, RefreshCw } from 'lucide-react';
 import { useProjects } from '@/hooks/useProjects';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const Dashboard = () => {
   const { user } = useAuth();
-  const { projects: recentProjects, isLoading, error } = useProjects();
-
-  // No need for additional useEffect as the fetchProjects is already handled in the hook
+  const { projects: recentProjects, isLoading, error, fetchProjects } = useProjects();
+  
+  const handleRefresh = () => {
+    fetchProjects();
+  };
 
   const emptyState = (
     <div className="py-20 text-center">
@@ -29,11 +31,15 @@ const Dashboard = () => {
         Get started by creating a new educational content project or choose from our templates.
       </p>
       <div className="flex flex-col sm:flex-row justify-center gap-4">
-        <Button className="gap-2">
-          <Plus className="h-4 w-4" /> New Project
+        <Button asChild className="gap-2">
+          <Link to="/projects/new">
+            <Plus className="h-4 w-4" /> New Project
+          </Link>
         </Button>
-        <Button variant="outline" className="gap-2">
-          <LayoutGrid className="h-4 w-4" /> Browse Templates
+        <Button variant="outline" asChild className="gap-2">
+          <Link to="/templates">
+            <LayoutGrid className="h-4 w-4" /> Browse Templates
+          </Link>
         </Button>
       </div>
     </div>
@@ -42,18 +48,7 @@ const Dashboard = () => {
   const loadingSkeletons = (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       {[...Array(2)].map((_, i) => (
-        <Card key={i} className="animate-pulse">
-          <CardHeader>
-            <div className="h-6 w-2/3 bg-muted rounded"></div>
-            <div className="h-4 w-1/2 bg-muted rounded"></div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <div className="h-4 w-full bg-muted rounded"></div>
-              <div className="h-4 w-5/6 bg-muted rounded"></div>
-            </div>
-          </CardContent>
-        </Card>
+        <Skeleton key={i} className="h-[220px] w-full" />
       ))}
     </div>
   );
@@ -67,18 +62,20 @@ const Dashboard = () => {
             Welcome back{user?.user_metadata?.full_name ? `, ${user.user_metadata.full_name}` : ''}! Manage your educational content projects.
           </p>
         </div>
-        <Button>
-          <Plus className="mr-2 h-4 w-4" /> New Project
-        </Button>
       </div>
 
       {/* Recent Projects */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold">Recent Projects</h2>
-          <Button variant="ghost" size="sm" className="text-sm" asChild>
-            <Link to="/projects">View All</Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" className="text-sm" onClick={handleRefresh}>
+              <RefreshCw className="h-4 w-4 mr-1" /> Refresh
+            </Button>
+            <Button variant="ghost" size="sm" className="text-sm" asChild>
+              <Link to="/projects">View All</Link>
+            </Button>
+          </div>
         </div>
         
         {isLoading ? (
@@ -87,22 +84,26 @@ const Dashboard = () => {
           <Card className="bg-muted/20 border-destructive/50">
             <CardHeader>
               <CardTitle className="text-destructive">Error Loading Projects</CardTitle>
-              <CardDescription>There was a problem loading your projects. Please try refreshing the page.</CardDescription>
+              <CardDescription>There was a problem loading your projects. Please try again.</CardDescription>
             </CardHeader>
             <CardFooter>
               <Button 
                 variant="outline" 
-                onClick={() => window.location.reload()}
-                className="w-full"
+                onClick={handleRefresh}
+                className="w-full gap-2"
               >
-                Refresh
+                <RefreshCw className="h-4 w-4" /> Retry Loading Projects
               </Button>
             </CardFooter>
           </Card>
         ) : recentProjects.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {recentProjects.slice(0, 4).map((project) => (
-              <ProjectCard key={project.id} project={project} />
+              <ProjectCard 
+                key={project.id} 
+                project={project} 
+                onClick={() => { window.location.href = `/projects/${project.id}`; }}
+              />
             ))}
           </div>
         ) : (
@@ -110,69 +111,20 @@ const Dashboard = () => {
         )}
       </div>
 
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <div className="h-8 w-8 rounded-md bg-primary/10 text-primary flex items-center justify-center mr-2">
-                <FilePlus className="h-5 w-5" />
-              </div>
-              Create New
-            </CardTitle>
-            <CardDescription>Start creating a new educational project</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button className="w-full">
-              Create Project
-            </Button>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <div className="h-8 w-8 rounded-md bg-primary/10 text-primary flex items-center justify-center mr-2">
-                <BookOpen className="h-5 w-5" />
-              </div>
-              Templates
-            </CardTitle>
-            <CardDescription>Browse our collection of educational templates</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button className="w-full" variant="outline" asChild>
-              <Link to="/templates">Browse Templates</Link>
-            </Button>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <div className="h-8 w-8 rounded-md bg-primary/10 text-primary flex items-center justify-center mr-2">
-                <Settings className="h-5 w-5" />
-              </div>
-              Settings
-            </CardTitle>
-            <CardDescription>Manage your account and preferences</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button className="w-full" variant="outline" asChild>
-              <Link to="/settings">Account Settings</Link>
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-
       {/* Featured Templates */}
       <div className="space-y-4">
-        <h2 className="text-xl font-semibold">Featured Templates</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold">Featured Templates</h2>
+          <Button variant="ghost" size="sm" className="text-sm" asChild>
+            <Link to="/templates">View All Templates</Link>
+          </Button>
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           {projectTemplates.slice(0, 3).map(template => (
             <TemplateCard 
               key={template.id} 
               template={template} 
-              onSelect={() => console.log(`Selected template: ${template.id}`)}
+              onSelect={() => { window.location.href = `/templates/${template.id}`; }}
             />
           ))}
         </div>
