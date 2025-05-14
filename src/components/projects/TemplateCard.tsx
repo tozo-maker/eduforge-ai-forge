@@ -3,18 +3,19 @@ import React from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ProjectTemplate } from "@/types/project";
-import { Book, BookOpen, FileText, FolderOpen, Grid2X2, ArrowRight } from "lucide-react";
+import { Book, BookOpen, FileText, FolderOpen, Grid2X2, ArrowRight, Eye } from "lucide-react";
 
 interface TemplateCardProps {
   template: ProjectTemplate;
   onSelect?: () => void;
+  onViewDetails?: () => void;
   className?: string;
   tabIndex?: number;
   onKeyDown?: (e: React.KeyboardEvent) => void;
   "aria-label"?: string;
 }
 
-export function TemplateCard({ template, onSelect, className, ...props }: TemplateCardProps) {
+export function TemplateCard({ template, onSelect, onViewDetails, className, ...props }: TemplateCardProps) {
   const getTemplateIcon = () => {
     switch (template.icon) {
       case "book-open":
@@ -40,10 +41,16 @@ export function TemplateCard({ template, onSelect, className, ...props }: Templa
     ).join(' ');
   };
 
+  const handleCardClick = (e: React.MouseEvent) => {
+    if (onViewDetails) {
+      onViewDetails();
+    }
+  };
+
   return (
     <Card 
       className={`overflow-hidden h-full flex flex-col transition-all hover:shadow-md cursor-pointer border-2 hover:border-primary/30 group ${className || ''}`}
-      onClick={onSelect}
+      onClick={handleCardClick}
       {...props}
     >
       <CardHeader className="p-6">
@@ -64,8 +71,26 @@ export function TemplateCard({ template, onSelect, className, ...props }: Templa
           {template.description}
         </p>
       </CardContent>
-      <CardFooter className="p-6 pt-0">
-        <Button className="w-full group-hover:bg-primary gap-2" onClick={onSelect}>
+      <CardFooter className="p-6 pt-0 flex justify-between">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="gap-1"
+          onClick={(e) => {
+            e.stopPropagation();
+            if (onViewDetails) onViewDetails();
+          }}
+        >
+          <Eye className="h-4 w-4" />
+          Preview
+        </Button>
+        <Button 
+          className="group-hover:bg-primary gap-2" 
+          onClick={(e) => {
+            e.stopPropagation();
+            if (onSelect) onSelect();
+          }}
+        >
           Use Template <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
         </Button>
       </CardFooter>
