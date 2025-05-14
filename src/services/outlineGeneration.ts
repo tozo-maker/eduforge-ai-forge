@@ -1,4 +1,5 @@
-import { OutlineGenerationParams, Outline, OutlineNode, TaxonomyLevel, OutlineNodeType, DifficultyLevel } from '@/types/outline';
+
+import { OutlineGenerationParams, Outline, OutlineNode, TaxonomyLevel, OutlineNodeType, DifficultyLevel, StructureType, Prerequisite, AssessmentPoint } from '@/types/outline';
 import { toast } from '@/hooks/use-toast';
 import { ProjectConfig, EducationalStandard } from '@/types/project';
 
@@ -319,7 +320,7 @@ const getTaxonomyLevel = (depth: number, structureType?: string): TaxonomyLevel 
   
   if (structureType === 'hierarchical') {
     // Hierarchical has more analytical focus
-    const hierarchicalLevels = ['understand', 'analyze', 'apply', 'evaluate', 'create'];
+    const hierarchicalLevels: TaxonomyLevel[] = ['understand', 'analyze', 'apply', 'evaluate', 'create'];
     return hierarchicalLevels[Math.min(depth, hierarchicalLevels.length - 1)];
   }
   
