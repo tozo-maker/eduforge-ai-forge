@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Outline } from '@/types/outline';
 import { toast } from '@/hooks/use-toast';
 import { exportToMarkdown, exportToHTML, exportToPDF, exportToDocx } from '@/services/exportService';
-import { FileText, FileDoc, FilePdf, FileHtml, Download } from 'lucide-react';
+import { FileText, Download, FileIcon } from 'lucide-react'; // Corrected icons import
 import { Progress } from '@/components/ui/progress';
 
 interface OutlineExportProps {
@@ -117,10 +117,11 @@ export function OutlineExport({ outline }: OutlineExportProps) {
     }
   };
   
+  // Using FileIcon with appropriate colors instead of the unavailable icon components
   const formatIcons = {
-    pdf: <FilePdf className="h-8 w-8 text-red-500" />,
-    docx: <FileDoc className="h-8 w-8 text-blue-500" />,
-    html: <FileHtml className="h-8 w-8 text-orange-500" />,
+    pdf: <FileIcon className="h-8 w-8 text-red-500" />,
+    docx: <FileIcon className="h-8 w-8 text-blue-500" />,
+    html: <FileIcon className="h-8 w-8 text-orange-500" />,
     markdown: <FileText className="h-8 w-8 text-purple-500" />
   };
   
