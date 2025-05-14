@@ -8,9 +8,13 @@ import { Book, BookOpen, FileText, FolderOpen, Grid2X2, ArrowRight } from "lucid
 interface TemplateCardProps {
   template: ProjectTemplate;
   onSelect?: () => void;
+  className?: string;
+  tabIndex?: number;
+  onKeyDown?: (e: React.KeyboardEvent) => void;
+  "aria-label"?: string;
 }
 
-export function TemplateCard({ template, onSelect }: TemplateCardProps) {
+export function TemplateCard({ template, onSelect, className, ...props }: TemplateCardProps) {
   const getTemplateIcon = () => {
     switch (template.icon) {
       case "book-open":
@@ -38,12 +42,9 @@ export function TemplateCard({ template, onSelect }: TemplateCardProps) {
 
   return (
     <Card 
-      className="overflow-hidden h-full flex flex-col transition-all hover:shadow-md cursor-pointer border-2 hover:border-primary/30 group"
+      className={`overflow-hidden h-full flex flex-col transition-all hover:shadow-md cursor-pointer border-2 hover:border-primary/30 group ${className || ''}`}
       onClick={onSelect}
-      tabIndex={0}
-      role="button"
-      aria-label={`Use ${template.name} template`}
-      onKeyDown={(e) => e.key === 'Enter' && onSelect && onSelect()}
+      {...props}
     >
       <CardHeader className="p-6">
         <div className="flex space-x-3 items-center">

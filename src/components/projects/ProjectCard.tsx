@@ -9,9 +9,13 @@ import { BookOpen, FileText, Grid2X2, Layout, LayoutList, ArrowRight } from "luc
 interface ProjectCardProps {
   project: ProjectConfig;
   onClick?: () => void;
+  className?: string;
+  tabIndex?: number;
+  onKeyDown?: (e: React.KeyboardEvent) => void;
+  "aria-label"?: string;
 }
 
-export function ProjectCard({ project, onClick }: ProjectCardProps) {
+export function ProjectCard({ project, onClick, className, ...props }: ProjectCardProps) {
   const getProjectIcon = () => {
     switch (project.type) {
       case "lesson_plan":
@@ -43,12 +47,9 @@ export function ProjectCard({ project, onClick }: ProjectCardProps) {
 
   return (
     <Card 
-      className="overflow-hidden transition-all hover:shadow-md cursor-pointer border-2 hover:border-primary/30 group" 
+      className={`overflow-hidden transition-all hover:shadow-md cursor-pointer border-2 hover:border-primary/30 group ${className || ''}`}
       onClick={onClick}
-      tabIndex={0}
-      role="button"
-      aria-label={`Open ${project.name} project`}
-      onKeyDown={(e) => e.key === 'Enter' && onClick && onClick()}
+      {...props}
     >
       <CardHeader className="p-6">
         <div className="flex justify-between items-start">
