@@ -8,8 +8,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { AccessibilityFeature, CulturalContext, TerminologyType, LanguageConfig } from '@/types/project';
-import { RefreshCw, MessageSquare, Globe, FileText } from "lucide-react";
+import { RefreshCw, MessageSquare, Globe, FileText, Search } from "lucide-react";
+import { generateLanguageSample } from '@/services/languageSampleGenerator';
+import { useToast } from '@/hooks/use-toast';
 
 interface LanguageAccessibilityConfigProps {
   config: LanguageConfig;
@@ -22,11 +25,12 @@ export function LanguageAccessibilityConfig({
 }: LanguageAccessibilityConfigProps) {
   const [sampleText, setSampleText] = useState<string | null>(null);
   const [loadingSample, setLoadingSample] = useState(false);
+  const [sampleTopic, setSampleTopic] = useState("science");
+  const { toast } = useToast();
 
   const handleConfigChange = (key: keyof LanguageConfig, value: any) => {
     const updatedConfig = { ...config, [key]: value };
     onConfigChange(updatedConfig);
-    setSampleText(null); // Reset sample text when configuration changes
   };
 
   const handleAccessibilityFeatureToggle = (feature: AccessibilityFeature) => {
@@ -37,34 +41,21 @@ export function LanguageAccessibilityConfig({
     handleConfigChange('accessibilityFeatures', updatedFeatures);
   };
 
-  const generateSampleText = () => {
+  const generateSampleText = async () => {
     setLoadingSample(true);
-    setTimeout(() => {
-      // This would be replaced with an actual API call to generate text with Claude
-      const readabilityLevel = config.readabilityLevel;
-      const culturalContext = config.culturalContext;
-      const terminology = config.terminology;
-      
-      let sample = "";
-      if (readabilityLevel <= 3) {
-        sample = "The sun is big. It gives us light. Plants need light to grow. People need plants.";
-      } else if (readabilityLevel <= 6) {
-        sample = "The sun is the most important star in our solar system. It provides light and heat that makes life on Earth possible. Plants use sunlight to make food through photosynthesis.";
-      } else {
-        sample = "The sun, a G-type main-sequence star at the center of our solar system, emits electromagnetic radiation that enables photosynthesis in plants, the foundation of most terrestrial ecosystems. Its thermonuclear reactions convert hydrogen into helium, releasing energy that maintains Earth's biosphere.";
-      }
-
-      if (terminology === 'academic') {
-        sample += " Pedagogical implications include the utilization of solar phenomena to illustrate fundamental scientific principles.";
-      }
-
-      if (culturalContext === 'multicultural') {
-        sample += " Various cultures throughout history have interpreted the significance of the sun differently, often incorporating it into their mythologies and belief systems.";
-      }
-
+    try {
+      const sample = await generateLanguageSample(config, { topic: sampleTopic });
       setSampleText(sample);
+    } catch (error) {
+      toast({
+        title: "Error generating sample",
+        description: "Could not generate language sample. Please try again.",
+        variant: "destructive"
+      });
+      console.error("Error generating sample:", error);
+    } finally {
       setLoadingSample(false);
-    }, 1000);
+    }
   };
 
   const readabilityLabels = [
@@ -163,30 +154,42 @@ export function LanguageAccessibilityConfig({
               </RadioGroup>
             </div>
 
-            <div className="pt-2">
-              <Button 
-                className="w-full gap-2"
-                variant="outline"
-                onClick={generateSampleText}
-                disabled={loadingSample}
-              >
-                {loadingSample ? (
-                  <>
-                    <RefreshCw className="h-4 w-4 animate-spin" />
-                    Generating Sample...
-                  </>
-                ) : (
-                  <>
-                    <MessageSquare className="h-4 w-4" />
-                    Generate Language Sample
-                  </>
-                )}
-              </Button>
+            <div className="pt-2 space-y-3">
+              <Label>Sample Topic</Label>
+              <div className="flex gap-2">
+                <Input 
+                  value={sampleTopic} 
+                  onChange={(e) => setSampleTopic(e.target.value)}
+                  placeholder="Enter sample topic"
+                  className="flex-1"
+                />
+                <Button 
+                  className="gap-2"
+                  variant="outline"
+                  onClick={generateSampleText}
+                  disabled={loadingSample}
+                >
+                  {loadingSample ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <MessageSquare className="h-4 w-4" />
+                      Generate
+                    </>
+                  )}
+                </Button>
+              </div>
               
               {sampleText && (
                 <Card className="mt-3 bg-muted/30">
-                  <CardContent className="p-3">
-                    <FileText className="h-4 w-4 mb-2 text-muted-foreground" />
+                  <CardContent className="p-3 space-y-2">
+                    <div className="flex items-center gap-2 border-b pb-1">
+                      <FileText className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm font-medium">Language Sample</span>
+                    </div>
                     <p className="text-sm">{sampleText}</p>
                   </CardContent>
                 </Card>
