@@ -1,4 +1,3 @@
-
 import { EducationalStandard, ProjectConfig } from './project';
 
 export type OutlineNodeType = 
@@ -60,11 +59,12 @@ export interface OutlineNote {
   color?: string;
 }
 
+// Add Reference type definition if it's not already present
 export interface Reference {
   id: string;
   title: string;
-  url?: string;
-  notes?: string;
+  url: string;
+  notes: string;
   type: 'article' | 'book' | 'video' | 'website' | 'research';
 }
 

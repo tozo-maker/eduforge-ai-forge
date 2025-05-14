@@ -41,7 +41,7 @@ serve(async (req) => {
 
   try {
     const clientId = req.headers.get('x-client-info') || req.headers.get('user-agent') || 'anonymous';
-    const { prompt, model = 'claude-3-haiku', projectConfig, structureType, referenceUrls = [], references = [] } = await req.json();
+    const { prompt, model = 'claude-3-haiku', projectConfig, structureType, referenceUrls = [] } = await req.json();
 
     // Check rate limits
     if (!checkRateLimit(clientId)) {
@@ -65,7 +65,9 @@ serve(async (req) => {
     }
 
     // Extract references for context
-    const referenceContext = processReferences(references, referenceUrls);
+    const referenceContext = referenceUrls.length > 0 
+      ? `Consider these reference URLs in your outline creation:\n${referenceUrls.join('\n')}\n\n`
+      : '';
 
     // Create a system prompt that guides Claude to generate educational content
     const systemPrompt = `You are an expert educational content outline generator. 
@@ -179,33 +181,3 @@ The outline should be comprehensive yet clear, with logical progression through 
     );
   }
 });
-
-// Process references to provide context to Claude
-function processReferences(references = [], referenceUrls = []): string {
-  if (references.length === 0 && referenceUrls.length === 0) {
-    return '';
-  }
-  
-  let context = 'Consider these reference materials in your outline creation:\n\n';
-  
-  // Process structured references
-  if (references.length > 0) {
-    references.forEach((ref, index) => {
-      context += `Reference ${index + 1}: ${ref.title}\n`;
-      if (ref.url) context += `URL: ${ref.url}\n`;
-      if (ref.type) context += `Type: ${ref.type}\n`;
-      if (ref.notes) context += `Notes: ${ref.notes}\n`;
-      context += '\n';
-    });
-  } 
-  // Process simple URL references if no structured references
-  else if (referenceUrls.length > 0) {
-    context += 'Reference URLs:\n';
-    referenceUrls.forEach((url, index) => {
-      context += `${index + 1}. ${url}\n`;
-    });
-    context += '\n';
-  }
-  
-  return context;
-}
