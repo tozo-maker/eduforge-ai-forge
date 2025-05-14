@@ -21,12 +21,13 @@ import OutlinePage from '@/pages/OutlinePage';
 import './App.css';
 
 function App() {
+  console.log('App component rendering');
   return (
     <ThemeProvider defaultTheme="system" storageKey="ui-theme">
       <TranslationProvider>
-        <AuthProvider>
-          <QueryClientProvider client={queryClient}>
-            <Router>
+        <QueryClientProvider client={queryClient}>
+          <Router>
+            <AuthProvider>
               <Routes>
                 {/* Public Routes */}
                 <Route path="/" element={<Landing />} />
@@ -57,15 +58,15 @@ function App() {
                 </Route>
                 
                 {/* Root redirect */}
-                <Route path="/index" element={<Navigate to="/dashboard" replace />} />
+                <Route path="/index" element={<Navigate to="/" replace />} />
                 
                 {/* 404 Route */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
-            </Router>
-            <Toaster />
-          </QueryClientProvider>
-        </AuthProvider>
+              <Toaster />
+            </AuthProvider>
+          </Router>
+        </QueryClientProvider>
       </TranslationProvider>
     </ThemeProvider>
   );

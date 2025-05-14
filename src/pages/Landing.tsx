@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -7,6 +6,7 @@ import { ArrowRight, BookOpen, Brain, CheckCircle, FileText, Grid, LayoutGrid, L
 
 const Landing = () => {
   const { user } = useAuth();
+  console.log('Landing page rendering, user:', user);
   
   return (
     <div className="min-h-screen flex flex-col">
@@ -34,10 +34,10 @@ const Landing = () => {
             ) : (
               <>
                 <Button variant="ghost" asChild>
-                  <Link to="/auth/login">Sign In</Link>
+                  <Link to="/login">Sign In</Link>
                 </Button>
                 <Button asChild>
-                  <Link to="/auth/register">Get Started</Link>
+                  <Link to="/register">Get Started</Link>
                 </Button>
               </>
             )}
@@ -293,7 +293,7 @@ const Landing = () => {
             Join thousands of educators already using EduForge AI to create better educational materials in less time.
           </p>
           <Button size="lg" className="bg-white text-primary hover:bg-slate-100 px-8" asChild>
-            <Link to="/auth/register">Get Started For Free</Link>
+            <Link to="/register">Get Started For Free</Link>
           </Button>
         </div>
       </section>
