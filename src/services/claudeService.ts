@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { OutlineGenerationParams, OutlineNode, Outline } from '@/types/outline';
 import { toast } from '@/hooks/use-toast';
@@ -48,7 +49,8 @@ export const claudeService = {
           projectConfig: params.projectConfig,
           structureType: params.structureType || 'sequential',
           referenceUrls: params.referenceUrls || [],
-          references: params.references || []
+          // Fix: Use referenceUrls instead of references
+          // references property doesn't exist on OutlineGenerationParams
         }
       });
 

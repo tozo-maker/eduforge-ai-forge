@@ -9,9 +9,11 @@ import { X, Link, Plus, BookOpen, Lightbulb, FileText } from 'lucide-react';
 import { Outline, OutlineNode } from '@/types/outline';
 import { toast } from '@/hooks/use-toast';
 
-interface ReferenceIntegratorProps {
+export interface ReferenceIntegratorProps {
   outline: Outline;
   onUpdateOutline: (outline: Outline) => void;
+  suggestedPlacements?: Record<string, string[]>;
+  hasAnalyzedReferences?: boolean;
 }
 
 // Interface for reference material
@@ -23,7 +25,12 @@ interface Reference {
   type: 'article' | 'book' | 'video' | 'website' | 'research';
 }
 
-export function ReferenceIntegrator({ outline, onUpdateOutline }: ReferenceIntegratorProps) {
+export function ReferenceIntegrator({ 
+  outline, 
+  onUpdateOutline, 
+  suggestedPlacements = {}, 
+  hasAnalyzedReferences = false 
+}: ReferenceIntegratorProps) {
   // State for references list
   const [references, setReferences] = useState<Reference[]>(
     outline.references || []
@@ -39,6 +46,8 @@ export function ReferenceIntegrator({ outline, onUpdateOutline }: ReferenceInteg
   
   // State for node-reference mapping
   const [nodeReferences, setNodeReferences] = useState<Record<string, string[]>>(
+    suggestedPlacements && hasAnalyzedReferences ? 
+    { ...outline.nodeReferences || {}, ...suggestedPlacements } : 
     outline.nodeReferences || {}
   );
   
