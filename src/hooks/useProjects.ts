@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ProjectConfig } from '@/types/project';
 import { toast } from '@/hooks/use-toast';
@@ -12,13 +12,8 @@ export const useProjects = () => {
   const [error, setError] = useState<Error | null>(null);
   const { user } = useAuth();
 
-  useEffect(() => {
-    if (user) {
-      fetchProjects();
-    }
-  }, [user]);
-
-  const fetchProjects = async () => {
+  // Use useCallback to prevent infinite dependency loops
+  const fetchProjects = useCallback(async (retryCount = 0) => {
     if (!user) return;
     
     try {
@@ -41,16 +36,36 @@ export const useProjects = () => {
       
       setProjects(appProjects);
     } catch (err) {
+      console.error("Error fetching projects:", err);
       setError(err instanceof Error ? err : new Error('Failed to fetch projects'));
-      toast({
-        title: 'Error',
-        description: 'Failed to load projects.',
-        variant: 'destructive',
-      });
+      
+      // Only show toast on final retry
+      if (retryCount >= 2) {
+        toast({
+          title: 'Error',
+          description: 'Failed to load projects. Please try again.',
+          variant: 'destructive',
+          duration: 3000, // Reduce duration for better UX
+        });
+      } else {
+        // Implement retry logic with exponential backoff
+        const retryDelay = Math.min(1000 * Math.pow(2, retryCount), 5000);
+        setTimeout(() => fetchProjects(retryCount + 1), retryDelay);
+      }
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      fetchProjects();
+    } else {
+      setProjects([]);
+      setIsLoading(false);
+      setError(null);
+    }
+  }, [user, fetchProjects]);
 
   return { projects, isLoading, error, fetchProjects };
 };

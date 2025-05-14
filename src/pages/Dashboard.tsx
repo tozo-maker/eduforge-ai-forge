@@ -1,4 +1,5 @@
-import React, { useEffect } from 'react';
+
+import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
@@ -8,16 +9,13 @@ import { TemplateCard } from '@/components/projects/TemplateCard';
 import projectTemplates from '@/data/projectTemplates';
 import { BookOpen, FilePlus, FolderPlus, LayoutGrid, Plus, Settings } from 'lucide-react';
 import { useProjects } from '@/hooks/useProjects';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const Dashboard = () => {
   const { user } = useAuth();
-  const { projects: recentProjects, isLoading, fetchProjects } = useProjects();
+  const { projects: recentProjects, isLoading, error } = useProjects();
 
-  useEffect(() => {
-    if (user) {
-      fetchProjects();
-    }
-  }, [user, fetchProjects]);
+  // No need for additional useEffect as the fetchProjects is already handled in the hook
 
   const emptyState = (
     <div className="py-20 text-center">
@@ -38,6 +36,25 @@ const Dashboard = () => {
           <LayoutGrid className="h-4 w-4" /> Browse Templates
         </Button>
       </div>
+    </div>
+  );
+
+  const loadingSkeletons = (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {[...Array(2)].map((_, i) => (
+        <Card key={i} className="animate-pulse">
+          <CardHeader>
+            <div className="h-6 w-2/3 bg-muted rounded"></div>
+            <div className="h-4 w-1/2 bg-muted rounded"></div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              <div className="h-4 w-full bg-muted rounded"></div>
+              <div className="h-4 w-5/6 bg-muted rounded"></div>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
     </div>
   );
 
@@ -65,22 +82,23 @@ const Dashboard = () => {
         </div>
         
         {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {[...Array(2)].map((_, i) => (
-              <Card key={i} className="animate-pulse">
-                <CardHeader>
-                  <div className="h-6 w-2/3 bg-muted rounded"></div>
-                  <div className="h-4 w-1/2 bg-muted rounded"></div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    <div className="h-4 w-full bg-muted rounded"></div>
-                    <div className="h-4 w-5/6 bg-muted rounded"></div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          loadingSkeletons
+        ) : error ? (
+          <Card className="bg-muted/20 border-destructive/50">
+            <CardHeader>
+              <CardTitle className="text-destructive">Error Loading Projects</CardTitle>
+              <CardDescription>There was a problem loading your projects. Please try refreshing the page.</CardDescription>
+            </CardHeader>
+            <CardFooter>
+              <Button 
+                variant="outline" 
+                onClick={() => window.location.reload()}
+                className="w-full"
+              >
+                Refresh
+              </Button>
+            </CardFooter>
+          </Card>
         ) : recentProjects.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {recentProjects.slice(0, 4).map((project) => (
