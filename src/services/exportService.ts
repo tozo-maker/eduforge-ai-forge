@@ -1,6 +1,6 @@
 
 import { Outline, OutlineNode } from '@/types/outline';
-import { createElement } from 'react';
+import { jsPDF } from 'jspdf';
 import { EducationalStandard } from '@/types/project';
 
 interface ExportOptions {
@@ -35,7 +35,7 @@ const getReferencedStandards = (nodes: OutlineNode[], standards: EducationalStan
   return standards.filter(std => standardIds.has(std.id));
 };
 
-// PDF Export Function - Using a simulated approach since jsPDF might not be properly integrated yet
+// PDF Export Function
 export const exportToPDF = async (
   outline: Outline, 
   options: ExportOptions,
@@ -43,25 +43,105 @@ export const exportToPDF = async (
 ): Promise<{ url: string; filename: string }> => {
   onProgress?.(0.1);
   
-  // For now, we'll create a simple text representation of the PDF
-  let pdfContent = `# ${outline.title}\n\n`;
+  // Set up PDF with appropriate page size
+  const isPaperA4 = options.paperSize === 'a4';
+  const pdf = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: isPaperA4 ? 'a4' : 'letter'
+  });
   
+  let currentPage = 1;
+  let y = 20; // Starting y position
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const margin = 20;
+  const contentWidth = pageWidth - 2 * margin;
+  
+  // Add title
+  pdf.setFontSize(24);
+  pdf.text(outline.title, pageWidth / 2, y, { align: 'center' });
+  y += 10;
+  
+  // Add description if available
   if (outline.description) {
-    pdfContent += `${outline.description}\n\n`;
+    pdf.setFontSize(12);
+    pdf.text(outline.description, margin, y);
+    y += 10;
+  }
+  
+  onProgress?.(0.2);
+  
+  // Add table of contents if requested
+  if (options.includeTableOfContents) {
+    pdf.setFontSize(16);
+    pdf.text("Table of Contents", margin, y);
+    y += 10;
+    
+    // Simple table of contents generation
+    const addTocItem = (node: OutlineNode, level: number) => {
+      const indent = level * 5;
+      pdf.setFontSize(12 - level);
+      
+      // Check if we need to add a new page
+      if (y > pdf.internal.pageSize.getHeight() - 20) {
+        pdf.addPage();
+        currentPage++;
+        y = 20;
+        
+        // Add page number if requested
+        if (options.includePageNumbers) {
+          pdf.setFontSize(10);
+          pdf.text(`Page ${currentPage}`, pageWidth - margin, pdf.internal.pageSize.getHeight() - 10);
+        }
+      }
+      
+      pdf.text(`${node.title}`, margin + indent, y);
+      y += 6;
+      
+      // Recursively add children to TOC
+      node.children.forEach(child => addTocItem(child, level + 1));
+    };
+    
+    outline.rootNodes.forEach(node => addTocItem(node, 0));
+    
+    // Add a page break after TOC
+    pdf.addPage();
+    currentPage++;
+    y = 20;
   }
   
   onProgress?.(0.3);
   
   // Helper function to render a node and its children
   const renderNode = (node: OutlineNode, level: number) => {
-    const indent = '  '.repeat(level);
-    let content = `${indent}${node.title}\n`;
+    const indent = level * 5;
     
-    if (node.description) {
-      content += `${indent}  ${node.description}\n`;
+    // Check if we need to add a new page
+    if (y > pdf.internal.pageSize.getHeight() - 30) {
+      pdf.addPage();
+      currentPage++;
+      y = 20;
+      
+      // Add page number if requested
+      if (options.includePageNumbers) {
+        pdf.setFontSize(10);
+        pdf.text(`Page ${currentPage}`, pageWidth - margin, pdf.internal.pageSize.getHeight() - 10);
+      }
     }
     
-    // Add meta information
+    // Node title
+    pdf.setFontSize(16 - level * 2);
+    pdf.text(node.title, margin + indent, y);
+    y += 8;
+    
+    // Node description if available
+    if (node.description) {
+      pdf.setFontSize(12);
+      pdf.text(node.description, margin + indent, y);
+      y += 6;
+    }
+    
+    // Add meta information like word count, time, etc.
     const metaItems = [];
     if (options.includeWordCounts) metaItems.push(`Words: ${node.estimatedWordCount}`);
     if (options.includeTimeEstimates) metaItems.push(`Time: ${node.estimatedDuration} min`);
@@ -69,55 +149,104 @@ export const exportToPDF = async (
     if (node.taxonomyLevel) metaItems.push(`Taxonomy: ${node.taxonomyLevel}`);
     
     if (metaItems.length > 0) {
-      content += `${indent}  ${metaItems.join(' | ')}\n`;
+      pdf.setFontSize(10);
+      pdf.text(metaItems.join(' | '), margin + indent, y);
+      y += 6;
     }
     
     // Standards if requested
     if (options.includeStandards && node.standardIds && node.standardIds.length > 0) {
-      content += `${indent}  Standards: ${node.standardIds.join(', ')}\n`;
+      pdf.setFontSize(10);
+      pdf.text(`Standards: ${node.standardIds.join(', ')}`, margin + indent, y);
+      y += 6;
     }
     
-    // Recursively add children content
-    node.children.forEach(child => {
-      content += renderNode(child, level + 1);
-    });
+    // Add a little space before rendering children
+    y += 4;
     
-    return content;
+    // Recursively render children
+    node.children.forEach(child => renderNode(child, level + 1));
   };
   
-  // Add all nodes
+  // Render all nodes
   outline.rootNodes.forEach((node, index) => {
-    pdfContent += renderNode(node, 0);
-    pdfContent += '\n';
+    // For second and subsequent root nodes, add some extra spacing
+    if (index > 0) y += 10;
+    renderNode(node, 0);
   });
   
   onProgress?.(0.6);
   
-  // Add references if requested
+  // Add references section if requested
   if (options.includeReferences && outline.references && outline.references.length > 0) {
-    pdfContent += '\n# References\n\n';
+    // Add a page break before references
+    pdf.addPage();
+    currentPage++;
+    y = 20;
     
+    // Add page number if requested
+    if (options.includePageNumbers) {
+      pdf.setFontSize(10);
+      pdf.text(`Page ${currentPage}`, pageWidth - margin, pdf.internal.pageSize.getHeight() - 10);
+    }
+    
+    pdf.setFontSize(16);
+    pdf.text("References", margin, y);
+    y += 10;
+    
+    // List all references
+    pdf.setFontSize(12);
     outline.references.forEach((ref, index) => {
-      pdfContent += `${index + 1}. ${ref.title}${ref.url ? ` - ${ref.url}` : ''}\n`;
-      
-      if (ref.notes) {
-        pdfContent += `   Note: ${ref.notes}\n`;
+      // Check if we need to add a new page
+      if (y > pdf.internal.pageSize.getHeight() - 20) {
+        pdf.addPage();
+        currentPage++;
+        y = 20;
+        
+        // Add page number if requested
+        if (options.includePageNumbers) {
+          pdf.setFontSize(10);
+          pdf.text(`Page ${currentPage}`, pageWidth - margin, pdf.internal.pageSize.getHeight() - 10);
+        }
       }
       
-      pdfContent += '\n';
+      const refText = `${index + 1}. ${ref.title}${ref.url ? ` - ${ref.url}` : ''}`;
+      pdf.text(refText, margin, y, { maxWidth: contentWidth });
+      
+      // Estimate how many lines were used
+      const approxLines = Math.ceil(pdf.getTextWidth(refText) / contentWidth);
+      y += 6 * approxLines;
+      
+      // Add notes if available
+      if (ref.notes) {
+        pdf.setFontSize(10);
+        pdf.text(`Note: ${ref.notes}`, margin + 5, y);
+        y += 6;
+      }
     });
+  }
+  
+  onProgress?.(0.8);
+  
+  // Add page numbers if requested
+  if (options.includePageNumbers) {
+    for (let i = 1; i <= currentPage; i++) {
+      pdf.setPage(i);
+      pdf.setFontSize(10);
+      pdf.text(`Page ${i} of ${currentPage}`, pageWidth - margin, pdf.internal.pageSize.getHeight() - 10);
+    }
   }
   
   onProgress?.(0.9);
   
-  // Create a blob URL for the content
-  const blob = new Blob([pdfContent], { type: 'application/pdf' });
-  const url = URL.createObjectURL(blob);
+  // Generate the PDF file
+  const pdfBlob = pdf.output('blob');
+  const pdfUrl = URL.createObjectURL(pdfBlob);
   
   onProgress?.(1);
   
   return {
-    url,
+    url: pdfUrl,
     filename: `${outline.title}.pdf`
   };
 };
