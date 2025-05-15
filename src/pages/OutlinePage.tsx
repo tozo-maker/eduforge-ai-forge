@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useProject } from '@/hooks/useProject';
@@ -30,6 +29,7 @@ import { standardsDatabase } from '@/data/standardsDatabase';
 import { ContentStructureVisualizer } from '@/components/projects/ContentStructureVisualizer';
 import { validateOutlineCoherence } from '@/services/outlineValidation';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { ProjectContentNavigation } from '@/components/projects/ProjectContentNavigation';
 
 export default function OutlinePage() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -184,6 +184,8 @@ export default function OutlinePage() {
           </div>
         )}
       </div>
+      
+      <ProjectContentNavigation />
       
       {/* Content Structure Visualizer - Now integrated with the outline system */}
       <ContentStructureVisualizer 
