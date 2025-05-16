@@ -93,7 +93,7 @@ export function CollaborationPanel({ projectId }: CollaborationPanelProps) {
         userId: 'user-1',
         userName: 'You',
         userAvatar: null,
-        content: 'Thanks! I'll review them shortly.',
+        content: "Thanks! I'll review them shortly.",
         timestamp: '10:27 AM'
       },
       {
