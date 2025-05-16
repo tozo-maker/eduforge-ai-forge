@@ -110,20 +110,28 @@ export const useProject = (projectId?: string) => {
         const standards = projectData.standards?.map(std => 
           typeof std === 'string' ? std : std.id
         ) || [];
-        
+
+        // Fix: Ensure we're passing a single object (not an array) with all required fields
         const { data, error } = await supabase
           .from('projects')
-          .insert([
-            {
-              ...dbProjectData,
-              user_id: user.id,
-              title: projectData.name,
-              learning_objectives: learningObjectives,
-              standards: standards,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            },
-          ])
+          .insert({
+            user_id: user.id,
+            title: projectData.name,
+            type: projectData.type,
+            description: dbProjectData.description,
+            subject: dbProjectData.subject,
+            grade_level: dbProjectData.grade_level,
+            standards: standards,
+            learning_objectives: learningObjectives,
+            pedagogical_approach: dbProjectData.pedagogical_approach,
+            cultural_context: dbProjectData.cultural_context,
+            accessibility: dbProjectData.accessibility,
+            assessment_type: dbProjectData.assessment_type,
+            duration: dbProjectData.duration,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            is_template: false
+          })
           .select('*')
           .single();
 
