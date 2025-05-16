@@ -1,37 +1,13 @@
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-// Get API key from environment variable
-const anthropicApiKey = Deno.env.get('ANTHROPIC_API_KEY');
+const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
 
-// CORS headers
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
-
-// Rate limiting state
-const rateLimits = {
-  requests: new Map<string, number[]>(), // clientKey -> timestamp[]
-  maxRequests: 5, // Maximum requests per window
-  windowMs: 60000, // Window size in milliseconds (1 minute)
-};
-
-// Check if a request should be rate limited
-function checkRateLimit(clientId: string): boolean {
-  const now = Date.now();
-  const clientRequests = rateLimits.requests.get(clientId) || [];
-  
-  // Filter out requests older than our window
-  const recentRequests = clientRequests.filter(timestamp => now - timestamp < rateLimits.windowMs);
-  
-  // Update request list
-  rateLimits.requests.set(clientId, [...recentRequests, now]);
-  
-  // Check if we've exceeded the limit
-  return recentRequests.length < rateLimits.maxRequests;
-}
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -40,144 +16,101 @@ serve(async (req) => {
   }
 
   try {
-    const clientId = req.headers.get('x-client-info') || req.headers.get('user-agent') || 'anonymous';
-    const { prompt, model = 'claude-3-haiku', projectConfig, structureType, referenceUrls = [] } = await req.json();
+    // Get the request body
+    const body = await req.json();
+    const { 
+      prompt, 
+      model = 'claude-3-haiku', 
+      projectConfig = null, 
+      format = null,
+      temperature = 0.7,
+      maxTokens = 1000 
+    } = body;
 
-    // Check rate limits
-    if (!checkRateLimit(clientId)) {
-      return new Response(
-        JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }),
-        { 
-          status: 429, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      );
+    console.log(`Generating content with ${model}`);
+    
+    if (!ANTHROPIC_API_KEY) {
+      throw new Error('Missing Anthropic API key');
     }
 
-    if (!anthropicApiKey) {
-      return new Response(
-        JSON.stringify({ error: 'ANTHROPIC_API_KEY is not set in environment variables' }),
-        { 
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      );
+    if (!prompt) {
+      throw new Error('Missing prompt');
     }
 
-    // Extract references for context
-    const referenceContext = referenceUrls.length > 0 
-      ? `Consider these reference URLs in your outline creation:\n${referenceUrls.join('\n')}\n\n`
-      : '';
+    // Configure the Claude API request
+    let messages = [
+      {
+        role: 'user',
+        content: prompt
+      }
+    ];
 
-    // Create a system prompt that guides Claude to generate educational content
-    const systemPrompt = `You are an expert educational content outline generator. 
-Your task is to create a detailed, well-structured outline for educational content.
+    // Define system message based on the request type
+    let systemPrompt = "You are an AI teaching assistant that helps educators create high-quality educational content.";
+    
+    // Add specialized instructions based on the format
+    if (format === 'json') {
+      systemPrompt += " Respond using valid JSON format only, with no explanations or other text outside the JSON.";
+    }
 
-${referenceContext}
+    if (projectConfig) {
+      systemPrompt += ` You're helping with a ${projectConfig.type} for ${projectConfig.gradeLevel} on the subject of ${projectConfig.subject}.`;
+    }
 
-Follow these guidelines:
-- Structure the content in a ${structureType || 'sequential'} format
-- Match the outline to the grade level: ${projectConfig?.gradeLevel || 'unspecified'}
-- Align with subject area: ${projectConfig?.subject || 'unspecified'}
-- Include learning objectives that address the standards provided
-- Create appropriate assessment points
-- Estimate realistic word counts and durations for each section
-- Maintain consistent educational taxonomy levels
-- Return the response in valid JSON format as an array of OutlineNode objects
-
-The outline should be comprehensive yet clear, with logical progression through concepts.`;
-
-    console.log("Calling Anthropic Claude API with model:", model);
-
-    // Make API call to Anthropic Claude
+    // Make the API request
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': anthropicApiKey,
+        'x-api-key': ANTHROPIC_API_KEY,
         'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify({
         model: model,
-        messages: [
-          {
-            role: 'system',
-            content: systemPrompt
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        max_tokens: 4000,
-        temperature: 0.7,
+        max_tokens: maxTokens,
+        temperature: temperature,
+        system: systemPrompt,
+        messages: messages
       }),
     });
 
-    // Get response data
-    const data = await response.json();
-    
     if (!response.ok) {
-      console.error("Anthropic API error:", data);
-      
-      // Handle different error types
-      let status = 500;
-      let errorMessage = "Error calling Anthropic API";
-      
-      if (data?.error?.type === "authentication_error") {
-        status = 401;
-        errorMessage = "Authentication error with Anthropic API";
-      } else if (data?.error?.type === "rate_limit_error") {
-        status = 429;
-        errorMessage = "Rate limit exceeded for Anthropic API";
-      } else if (data?.error?.type === "invalid_request_error") {
-        status = 400;
-        errorMessage = data?.error?.message || "Invalid request to Anthropic API";
-      }
-      
-      throw new Error(`Anthropic API error: ${errorMessage}`);
+      const errorData = await response.json();
+      console.error('Claude API error:', errorData);
+      throw new Error(`Claude API error: ${errorData.error?.message || 'Unknown error'}`);
     }
 
-    // Process and return the generated content
-    const generatedOutline = data.content?.[0]?.text || "[]";
+    const data = await response.json();
+    const generatedContent = data.content[0].text;
     
-    // Do basic validation of the response to ensure it's properly formed
-    try {
-      // Just check if it's valid JSON, don't need to store the result
-      JSON.parse(generatedOutline);
-    } catch (e) {
-      console.warn("Claude didn't return valid JSON. Raw response:", generatedOutline.substring(0, 200) + "...");
+    console.log(`Generation complete. Content starts with: ${generatedContent.substring(0, 50)}...`);
+    
+    // Try to parse JSON if that's what we're expecting
+    if (format === 'json') {
+      try {
+        // Find JSON in the response
+        const jsonMatch = generatedContent.match(/\[[\s\S]*\]|\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const jsonContent = JSON.parse(jsonMatch[0]);
+          return new Response(JSON.stringify({ content: jsonContent }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+      } catch (jsonError) {
+        console.error('Failed to parse JSON from Claude response:', jsonError);
+        // Fall back to sending raw text
+      }
     }
     
-    return new Response(
-      JSON.stringify({
-        success: true,
-        model: model,
-        outline: generatedOutline,
-      }),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
-    );
+    // Return the generated content
+    return new Response(JSON.stringify({ content: generatedContent }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   } catch (error) {
     console.error('Error in generate-with-claude function:', error);
-    
-    // Determine appropriate status code
-    let status = 500;
-    let errorMessage = error.message || "Unknown error";
-    
-    if (errorMessage.includes("authentication")) {
-      status = 401; 
-    } else if (errorMessage.includes("rate limit")) {
-      status = 429;
-    }
-    
-    return new Response(
-      JSON.stringify({ error: errorMessage }),
-      { 
-        status: status,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
-    );
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 });

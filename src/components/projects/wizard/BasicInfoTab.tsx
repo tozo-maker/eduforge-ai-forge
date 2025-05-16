@@ -5,11 +5,12 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Trash2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
+import { Plus, Trash2, Sparkles } from 'lucide-react';
 import { ProjectConfig, ProjectType, Subject, GradeLevel, PedagogicalApproach, AssessmentType, Duration } from '@/types/project';
 import { SubjectSuggestions } from '@/components/projects/SubjectSuggestions'; 
 import { AdaptiveWordCountCalculator } from '@/components/projects/AdaptiveWordCountCalculator';
-import { Card } from '@/components/ui/card';
+import { LearningObjectivesGenerator } from '@/components/projects/LearningObjectivesGenerator';
 
 interface BasicInfoTabProps {
   projectConfig: Partial<ProjectConfig>;
@@ -27,6 +28,7 @@ export function BasicInfoTab({
   removeLearningObjective
 }: BasicInfoTabProps) {
   const [showAdditionalOptions, setShowAdditionalOptions] = useState(true);
+  const [showObjectivesGenerator, setShowObjectivesGenerator] = useState(false);
 
   const projectTypes: {value: ProjectType, label: string}[] = [
     {value: 'lesson_plan', label: 'Lesson Plan'},
@@ -101,6 +103,20 @@ export function BasicInfoTab({
     // to create a multi-subject project
     alert(`Selected ${subject.replace('_', ' ')} as a secondary subject`);
   };
+
+  const handleSelectObjectives = (objectives: string[]) => {
+    // Replace current objectives with the selected ones
+    const newObjectives = [...objectives];
+    handleConfigChange('learningObjectives', newObjectives);
+    setShowObjectivesGenerator(false);
+  };
+
+  // Show the AI generator button only when we have enough context
+  const canGenerateObjectives = 
+    !!projectConfig.name && 
+    !!projectConfig.type && 
+    !!projectConfig.subject && 
+    !!projectConfig.gradeLevel;
 
   return (
     <div className="space-y-6">
@@ -198,7 +214,34 @@ export function BasicInfoTab({
       )}
       
       <div className="space-y-4">
-        <Label>Learning Objectives *</Label>
+        <div className="flex justify-between items-center">
+          <Label>Learning Objectives *</Label>
+          {canGenerateObjectives && (
+            <Dialog open={showObjectivesGenerator} onOpenChange={setShowObjectivesGenerator}>
+              <DialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1"
+                >
+                  <Sparkles className="h-4 w-4" /> Generate with AI
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-3xl">
+                <LearningObjectivesGenerator
+                  projectName={projectConfig.name || ''}
+                  projectType={projectConfig.type as ProjectType}
+                  description={projectConfig.description || ''}
+                  subject={projectConfig.subject as Subject}
+                  gradeLevel={projectConfig.gradeLevel as GradeLevel}
+                  onSelectObjectives={handleSelectObjectives}
+                  onCancel={() => setShowObjectivesGenerator(false)}
+                />
+              </DialogContent>
+            </Dialog>
+          )}
+        </div>
+        
         {(projectConfig.learningObjectives || []).map((objective, index) => (
           <div className="flex gap-2" key={index}>
             <Input

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Subject, GradeLevel } from '@/types/project';
-import { getComplementarySubjects } from '@/services/subjectSuggestions';
+import { topicSuggestionsService, TopicSuggestion } from '@/services/topicSuggestionsService';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,19 +26,27 @@ export function SubjectSuggestions({
   learningObjectives,
   onSelectAdditionalSubject
 }: SubjectSuggestionsProps) {
-  const [suggestions, setSuggestions] = useState<ReturnType<typeof getComplementarySubjects>>([]);
+  const [suggestions, setSuggestions] = useState<TopicSuggestion[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     // Only get suggestions if there's a selected subject
     if (selectedSubject) {
       setLoading(true);
-      // Simulate API call
-      setTimeout(() => {
-        const results = getComplementarySubjects(selectedSubject, gradeLevel, learningObjectives);
+      
+      // Use the AI service to generate suggestions
+      topicSuggestionsService.getComplementarySubjects(
+        selectedSubject, 
+        gradeLevel, 
+        learningObjectives
+      ).then(results => {
         setSuggestions(results);
         setLoading(false);
-      }, 800); // Simulate delay
+      }).catch(error => {
+        console.error("Error fetching subject suggestions:", error);
+        setLoading(false);
+        setSuggestions([]);
+      });
     } else {
       setSuggestions([]);
     }

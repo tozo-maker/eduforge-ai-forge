@@ -16,6 +16,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { File, Book, Settings, Globe, Sparkles } from 'lucide-react';
 import { WizardTabContent } from './wizard/WizardTabContent';
 import { WizardNavigation } from './wizard/WizardNavigation';
+import { toast } from '@/hooks/use-toast';
 
 interface ProjectConfigWizardProps {
   template?: ProjectTemplate;
@@ -85,12 +86,107 @@ export function ProjectConfigWizard({ template, onSave, onCancel }: ProjectConfi
     handleConfigChange('contentStructure', structure);
   };
 
-  const handleSubmit = () => {
-    onSave(projectConfig as ProjectConfig);
+  const handleSubmit = async () => {
+    try {
+      // Validate required fields before submitting
+      if (!projectConfig.name?.trim()) {
+        toast({
+          title: "Missing information",
+          description: "Please provide a project name",
+          variant: "destructive",
+        });
+        setActiveTab('basic');
+        return;
+      }
+
+      if (!projectConfig.type) {
+        toast({
+          title: "Missing information",
+          description: "Please select a project type",
+          variant: "destructive",
+        });
+        setActiveTab('basic');
+        return;
+      }
+
+      if (!projectConfig.subject) {
+        toast({
+          title: "Missing information",
+          description: "Please select a subject",
+          variant: "destructive",
+        });
+        setActiveTab('basic');
+        return;
+      }
+
+      if (!projectConfig.gradeLevel) {
+        toast({
+          title: "Missing information",
+          description: "Please select a grade level",
+          variant: "destructive",
+        });
+        setActiveTab('basic');
+        return;
+      }
+      
+      // Check learning objectives
+      if (!projectConfig.learningObjectives?.length || !projectConfig.learningObjectives[0].trim()) {
+        toast({
+          title: "Missing information",
+          description: "Please add at least one learning objective",
+          variant: "destructive",
+        });
+        setActiveTab('basic');
+        return;
+      }
+      
+      // Merge language and user profile settings into the project config
+      const finalConfig: ProjectConfig = {
+        ...projectConfig,
+        name: projectConfig.name!,
+        type: projectConfig.type!,
+        subject: projectConfig.subject!,
+        gradeLevel: projectConfig.gradeLevel!,
+        learningObjectives: projectConfig.learningObjectives!.filter(obj => obj.trim()),
+        standards: projectConfig.standards || []
+      } as ProjectConfig;
+      
+      console.log("Saving project with config:", finalConfig);
+      
+      onSave(finalConfig);
+    } catch (error) {
+      console.error("Error in form submission:", error);
+      toast({
+        title: "Error",
+        description: "There was a problem creating your project. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleNextTab = () => {
-    if (activeTab === 'basic') setActiveTab('standards');
+    if (activeTab === 'basic') {
+      // Validate basic info before proceeding
+      if (!projectConfig.name?.trim()) {
+        toast({
+          title: "Missing information",
+          description: "Please provide a project name",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (!projectConfig.type) {
+        toast({
+          title: "Missing information",
+          description: "Please select a project type",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setActiveTab('standards');
+    }
     else if (activeTab === 'standards') setActiveTab('structure');
     else if (activeTab === 'structure') setActiveTab('language');
     else if (activeTab === 'language') setActiveTab('profile');
@@ -107,8 +203,9 @@ export function ProjectConfigWizard({ template, onSave, onCancel }: ProjectConfi
   const isLastTab = activeTab === 'profile';
 
   const tabStatus = {
-    basic: !!projectConfig.name && !!projectConfig.subject && !!projectConfig.gradeLevel,
-    standards: true,
+    basic: !!projectConfig.name && !!projectConfig.subject && !!projectConfig.gradeLevel && 
+           !!projectConfig.learningObjectives?.length && !!projectConfig.learningObjectives[0],
+    standards: true, // Standards are optional
     structure: true,
     language: true,
     profile: true

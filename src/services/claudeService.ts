@@ -15,6 +15,45 @@ const responseCache = new Map<string, CacheEntry>();
 
 // Service to handle interactions with Claude API via Supabase Edge Functions
 export const claudeService = {
+  // Generate simple content with Claude
+  async generateContent({ prompt, model = 'claude-3-haiku', format = 'json', temperature = 0.7, maxTokens = 1000 }) {
+    try {
+      // Apply rate limiting
+      if (!this.checkRateLimit()) {
+        toast({
+          title: 'API Rate Limit Reached',
+          description: 'Please wait a moment before generating more content.',
+          variant: 'destructive',
+        });
+        return { data: null, error: 'Rate limit reached' };
+      }
+      
+      // Call Supabase Edge Function that interacts with Claude API
+      const { data, error } = await supabase.functions.invoke('generate-with-claude', {
+        body: {
+          prompt,
+          model,
+          format,
+          temperature,
+          maxTokens
+        }
+      });
+
+      if (error) {
+        console.error('Claude API error:', error);
+        return { data: null, error: error.message };
+      }
+
+      return { data: data?.content, error: null };
+    } catch (error) {
+      console.error('Error generating content with Claude:', error);
+      return { 
+        data: null, 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      };
+    }
+  },
+  
   // Generate outline content with Claude
   async generateOutlineContent(params: OutlineGenerationParams): Promise<OutlineNode[] | null> {
     try {

@@ -55,7 +55,17 @@ export const useProject = (projectId?: string) => {
         throw new Error('User not authenticated');
       }
 
+      // Validate required fields
+      if (!projectData.name) {
+        throw new Error('Project name is required');
+      }
+      
+      if (!projectData.type) {
+        throw new Error('Project type is required');
+      }
+
       const dbProjectData = appProjectToDbProject(projectData);
+      let savedProject;
 
       if (project?.id) {
         // Update existing project
@@ -70,10 +80,12 @@ export const useProject = (projectId?: string) => {
           .single();
 
         if (error) {
+          console.error("Update project error:", error);
           throw new Error(error.message);
         }
 
-        setProject(dbProjectToAppProject(data as DbProject));
+        savedProject = dbProjectToAppProject(data as DbProject);
+        setProject(savedProject);
         toast({
           title: 'Success',
           description: 'Project updated successfully.',
@@ -86,8 +98,8 @@ export const useProject = (projectId?: string) => {
             {
               ...dbProjectData,
               user_id: user.id,
-              title: projectData.name || 'Untitled Project', // Ensure title is set
-              type: projectData.type || 'lesson_plan', // Ensure type is set
+              title: projectData.name || 'Untitled Project',
+              type: projectData.type || 'lesson_plan',
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString(),
             },
@@ -96,15 +108,19 @@ export const useProject = (projectId?: string) => {
           .single();
 
         if (error) {
+          console.error("Create project error:", error);
           throw new Error(error.message);
         }
 
-        setProject(dbProjectToAppProject(data as DbProject));
+        savedProject = dbProjectToAppProject(data as DbProject);
+        setProject(savedProject);
         toast({
           title: 'Success',
           description: 'Project created successfully.',
         });
       }
+      
+      return savedProject;
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Failed to save project'));
       toast({
@@ -112,11 +128,10 @@ export const useProject = (projectId?: string) => {
         description: err instanceof Error ? err.message : 'Failed to save project.',
         variant: 'destructive',
       });
+      return null;
     } finally {
       setIsLoading(false);
     }
-
-    return project;
   };
 
   const deleteProject = async () => {
