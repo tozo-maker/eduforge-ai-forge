@@ -51,7 +51,10 @@ export const useProject = (projectId?: string) => {
       setIsLoading(true);
       setError(null);
 
+      console.log("Saving project with data:", projectData);
+      
       if (!user) {
+        console.error("No authenticated user found");
         throw new Error('User not authenticated');
       }
 
@@ -63,19 +66,24 @@ export const useProject = (projectId?: string) => {
       if (!projectData.type) {
         throw new Error('Project type is required');
       }
-
+      
+      // Prepare data for database
       const dbProjectData = appProjectToDbProject(projectData);
+      console.log("Mapped to DB format:", dbProjectData);
+      
       let savedProject;
 
-      if (project?.id) {
+      if (projectData.id) {
         // Update existing project
+        console.log("Updating existing project with ID:", projectData.id);
+        
         const { data, error } = await supabase
           .from('projects')
           .update({
             ...dbProjectData,
             updated_at: new Date().toISOString(),
           })
-          .eq('id', project.id)
+          .eq('id', projectData.id)
           .select('*')
           .single();
 
@@ -84,6 +92,7 @@ export const useProject = (projectId?: string) => {
           throw new Error(error.message);
         }
 
+        console.log("Project updated successfully:", data);
         savedProject = dbProjectToAppProject(data as DbProject);
         setProject(savedProject);
         toast({
@@ -92,14 +101,25 @@ export const useProject = (projectId?: string) => {
         });
       } else {
         // Create new project
+        console.log("Creating new project for user:", user.id);
+        
+        // Ensure learning objectives are properly formatted
+        const learningObjectives = projectData.learningObjectives?.filter(obj => obj.trim()) || [];
+        
+        // Prepare standards in the correct format
+        const standards = projectData.standards?.map(std => 
+          typeof std === 'string' ? std : std.id
+        ) || [];
+        
         const { data, error } = await supabase
           .from('projects')
           .insert([
             {
               ...dbProjectData,
               user_id: user.id,
-              title: projectData.name || 'Untitled Project',
-              type: projectData.type || 'lesson_plan',
+              title: projectData.name,
+              learning_objectives: learningObjectives,
+              standards: standards,
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString(),
             },
@@ -112,6 +132,7 @@ export const useProject = (projectId?: string) => {
           throw new Error(error.message);
         }
 
+        console.log("Project created successfully:", data);
         savedProject = dbProjectToAppProject(data as DbProject);
         setProject(savedProject);
         toast({
@@ -122,6 +143,7 @@ export const useProject = (projectId?: string) => {
       
       return savedProject;
     } catch (err) {
+      console.error("Error saving project:", err);
       setError(err instanceof Error ? err : new Error('Failed to save project'));
       toast({
         title: 'Error',

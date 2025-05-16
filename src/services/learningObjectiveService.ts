@@ -14,6 +14,8 @@ export const learningObjectiveService = {
     gradeLevel: GradeLevel
   ): Promise<string[]> {
     try {
+      console.log("Generating learning objectives with Claude...");
+      
       // Create a prompt for Claude to generate learning objectives
       const prompt = `Generate 4-6 learning objectives for an educational ${projectType} with the following details:
       
@@ -33,7 +35,7 @@ Return ONLY the learning objectives as a JSON array of strings, with no explanat
       // Call Claude API via edge function
       const { data, error } = await claudeService.generateContent({
         prompt,
-        model: 'claude-3-haiku',
+        model: 'claude-3-sonnet',
         format: 'json',
         temperature: 0.2,
         maxTokens: 600
@@ -45,9 +47,11 @@ Return ONLY the learning objectives as a JSON array of strings, with no explanat
       }
 
       if (!data || !Array.isArray(data)) {
+        console.error("Invalid response from AI service:", data);
         throw new Error("Invalid response from AI service");
       }
 
+      console.log("Generated learning objectives:", data);
       return data as string[];
     } catch (error) {
       console.error("Failed to generate learning objectives:", error);
@@ -55,7 +59,8 @@ Return ONLY the learning objectives as a JSON array of strings, with no explanat
       return [
         "Students will be able to identify key concepts related to the subject matter.",
         "Students will be able to demonstrate understanding through practical application.",
-        "Students will be able to analyze and evaluate information critically."
+        "Students will be able to analyze and evaluate information critically.",
+        "Students will be able to create original content that synthesizes learned concepts."
       ];
     }
   }

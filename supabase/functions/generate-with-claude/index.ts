@@ -20,7 +20,7 @@ serve(async (req) => {
     const body = await req.json();
     const { 
       prompt, 
-      model = 'claude-3-haiku', 
+      model = 'claude-3-sonnet', // Changed default from claude-3-haiku to claude-3-sonnet
       projectConfig = null, 
       format = null,
       temperature = 0.7,

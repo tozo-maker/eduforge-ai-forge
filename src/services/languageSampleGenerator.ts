@@ -1,29 +1,63 @@
 
 import { LanguageConfig, CulturalContext, TerminologyType } from '@/types/project';
+import { claudeService } from '@/services/claudeService';
 
 // This service provides functions to generate language samples based on configuration
-// In a real implementation, this would use Claude to generate the samples
-
 interface SampleGenerationOptions {
   topic?: string;
   maxLength?: number;
 }
 
-export const generateLanguageSample = (
+export const generateLanguageSample = async (
   config: LanguageConfig, 
   options: SampleGenerationOptions = {}
 ): Promise<string> => {
-  // In a real implementation, this would call Claude
-  return new Promise((resolve) => {
-    // Simulate API call delay
-    setTimeout(() => {
-      const sample = generateSampleText(config, options);
-      resolve(sample);
-    }, 800);
-  });
+  try {
+    const { topic = "science", maxLength = 300 } = options;
+    const { readabilityLevel, culturalContext, terminology } = config;
+    
+    // Create a prompt for Claude to generate a language sample
+    const prompt = `
+    Generate a sample paragraph about ${topic} with these characteristics:
+    
+    - Readability level: ${readabilityLevel}/10 (where 1 is elementary and 10 is post-graduate)
+    - Cultural context: ${culturalContext}
+    - Terminology type: ${terminology}
+    
+    The sample should be approximately ${maxLength} characters long.
+    
+    Return just the paragraph with no additional explanation.
+    `;
+
+    // Call Claude API via the claude service
+    const { data, error } = await claudeService.generateContent({
+      prompt,
+      model: 'claude-3-sonnet',
+      format: 'text',
+      temperature: 0.7,
+      maxTokens: 500
+    });
+
+    if (error) {
+      console.error("Error generating language sample:", error);
+      return generateFallbackSample(config, options);
+    }
+
+    if (typeof data === 'string') {
+      return data.substring(0, maxLength);
+    } else {
+      console.error("Unexpected response format from AI service");
+      return generateFallbackSample(config, options);
+    }
+  } catch (err) {
+    console.error('Failed to generate language sample with AI:', err);
+    // Fall back to the local function
+    return generateFallbackSample(config, options);
+  }
 };
 
-const generateSampleText = (config: LanguageConfig, options: SampleGenerationOptions): string => {
+// Fallback function for when the AI call fails
+const generateFallbackSample = (config: LanguageConfig, options: SampleGenerationOptions): string => {
   const { readabilityLevel, culturalContext, terminology } = config;
   const { topic = "science", maxLength = 300 } = options;
   

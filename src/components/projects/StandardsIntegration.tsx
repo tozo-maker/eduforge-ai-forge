@@ -1,16 +1,17 @@
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Search, X, Plus, Upload } from "lucide-react";
+import { Search, X, Plus, Upload, FileText } from "lucide-react";
 import { EducationalStandard } from '@/types/project';
 import { standardsDatabase } from '@/data/standardsDatabase';
 import { claudeService } from '@/services/claudeService';
 import { toast } from '@/hooks/use-toast';
+import { useDropzone } from 'react-dropzone';
 
 interface StandardsIntegrationProps {
   selectedStandards: EducationalStandard[];
@@ -24,6 +25,12 @@ export function StandardsIntegration({ selectedStandards, onStandardsChange }: S
   const [showCustomStandardModal, setShowCustomStandardModal] = useState(false);
   const [customStandardId, setCustomStandardId] = useState('');
   const [customStandardDescription, setCustomStandardDescription] = useState('');
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [isProcessingFile, setIsProcessingFile] = useState(false);
+  const [standardsFromFile, setStandardsFromFile] = useState<{text: string, processed: boolean}>({
+    text: '', 
+    processed: false
+  });
 
   const handleSearch = () => {
     if (!searchQuery.trim()) {
@@ -31,6 +38,7 @@ export function StandardsIntegration({ selectedStandards, onStandardsChange }: S
       return;
     }
 
+    console.log("Searching for standards with query:", searchQuery);
     const query = searchQuery.toLowerCase();
     const results = standardsDatabase.filter(standard => {
       if (
@@ -47,27 +55,43 @@ export function StandardsIntegration({ selectedStandards, onStandardsChange }: S
       );
     }).slice(0, 10); // Limit results
     
+    console.log("Search results:", results.length, "standards found");
     setSearchResults(results);
   };
 
   const handleAddStandard = (standard: EducationalStandard) => {
-    // Check if the standard is already selected
+    console.log("Adding standard:", standard);
+    
+    // Check if the standard is already selected by ID
     if (!selectedStandards.some(s => s.id === standard.id)) {
-      onStandardsChange([...selectedStandards, standard]);
+      const updatedStandards = [...selectedStandards, standard];
+      console.log("Updated standards:", updatedStandards);
+      onStandardsChange(updatedStandards);
       
       // Show success notification
       toast({
         title: "Standard Added",
         description: `Added standard: ${standard.id}`,
       });
+    } else {
+      // Standard already exists
+      toast({
+        title: "Standard Already Added",
+        description: `Standard ${standard.id} is already in your selection`,
+        variant: "destructive",
+      });
     }
+    
     // Clear search results after adding
     setSearchResults([]);
     setSearchQuery('');
   };
 
   const handleRemoveStandard = (standardId: string) => {
-    onStandardsChange(selectedStandards.filter(s => s.id !== standardId));
+    console.log("Removing standard with ID:", standardId);
+    const updatedStandards = selectedStandards.filter(s => s.id !== standardId);
+    console.log("Updated standards after removal:", updatedStandards);
+    onStandardsChange(updatedStandards);
     
     // Show notification
     toast({
@@ -93,12 +117,17 @@ export function StandardsIntegration({ selectedStandards, onStandardsChange }: S
       category: 'Custom'
     };
 
+    console.log("Adding custom standard:", newStandard);
+    
     // Add to selected standards
-    onStandardsChange([...selectedStandards, newStandard]);
+    const updatedStandards = [...selectedStandards, newStandard];
+    onStandardsChange(updatedStandards);
     
     // Reset form and close modal
     setCustomStandardId('');
     setCustomStandardDescription('');
+    setUploadedFile(null);
+    setStandardsFromFile({ text: '', processed: false });
     setShowCustomStandardModal(false);
     
     // Show success notification
@@ -107,6 +136,89 @@ export function StandardsIntegration({ selectedStandards, onStandardsChange }: S
       description: `Added custom standard: ${newStandard.id}`,
     });
   };
+
+  const onDrop = useCallback((acceptedFiles: File[]) => {
+    const file = acceptedFiles[0];
+    if (!file) return;
+    
+    console.log("File dropped:", file.name);
+    setUploadedFile(file);
+    setIsProcessingFile(true);
+    
+    // Read the file content
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      if (!e.target?.result) return;
+      
+      const fileContent = e.target.result as string;
+      setStandardsFromFile({ text: fileContent.substring(0, 500) + '...', processed: true });
+      
+      // If Claude service is available, try to extract standards
+      try {
+        const prompt = `
+        Extract educational standards from this document extract:
+        
+        ${fileContent.substring(0, 3000)}
+        
+        Return just the standard ID and description in this format:
+        ID: [standard identifier]
+        Description: [standard description]
+        `;
+        
+        const { data, error } = await claudeService.generateContent({
+          prompt,
+          model: 'claude-3-opus',
+          format: 'text',
+          temperature: 0.2,
+          maxTokens: 1000
+        });
+        
+        if (error) {
+          console.error("Error processing file with Claude:", error);
+          toast({
+            title: "Processing Error",
+            description: "Could not extract standards from file automatically. Please add details manually.",
+            variant: "destructive",
+          });
+        } else if (data && typeof data === 'string') {
+          // Try to extract standard ID and description
+          const lines = data.split("\n");
+          let currentId = "";
+          let currentDescription = "";
+          
+          for (const line of lines) {
+            if (line.startsWith("ID:")) {
+              currentId = line.replace("ID:", "").trim();
+            } else if (line.startsWith("Description:") && currentId) {
+              currentDescription = line.replace("Description:", "").trim();
+              if (currentId && currentDescription) {
+                setCustomStandardId(currentId);
+                setCustomStandardDescription(currentDescription);
+                break;
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Error processing file:", err);
+      }
+      
+      setIsProcessingFile(false);
+    };
+    
+    reader.readAsText(file);
+  }, []);
+  
+  const { getRootProps, getInputProps } = useDropzone({ 
+    onDrop,
+    accept: {
+      'text/plain': ['.txt'],
+      'application/pdf': ['.pdf'],
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+      'application/msword': ['.doc']
+    },
+    maxFiles: 1
+  });
 
   const filterOptions = [
     { name: 'Common Core', type: 'organization' },
@@ -220,15 +332,69 @@ export function StandardsIntegration({ selectedStandards, onStandardsChange }: S
 
           {/* Custom Standard Dialog */}
           <Dialog open={showCustomStandardModal} onOpenChange={setShowCustomStandardModal}>
-            <DialogContent>
+            <DialogContent className="max-w-md">
               <DialogHeader>
                 <DialogTitle>Add Custom Standard</DialogTitle>
                 <DialogDescription>
-                  Create your own educational standard to include in your project
+                  Create your own educational standard or upload a document to extract standards
                 </DialogDescription>
               </DialogHeader>
               
               <div className="space-y-4 py-4">
+                <div 
+                  {...getRootProps()} 
+                  className="border-2 border-dashed border-gray-300 rounded-md p-6 text-center cursor-pointer hover:border-primary/50 transition-colors"
+                >
+                  <input {...getInputProps()} />
+                  <div className="space-y-2">
+                    <div className="flex justify-center">
+                      <FileText className="h-10 w-10 text-muted-foreground" />
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Drag & drop a standards document, or click to select
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Supports PDF, DOCX, DOC, and TXT files
+                    </p>
+                  </div>
+                </div>
+
+                {isProcessingFile && (
+                  <div className="flex items-center justify-center space-x-2">
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
+                    <p className="text-sm text-muted-foreground">Processing file...</p>
+                  </div>
+                )}
+                
+                {uploadedFile && !isProcessingFile && (
+                  <div className="border rounded-md p-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <FileText className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm font-medium">{uploadedFile.name}</span>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setUploadedFile(null);
+                          setStandardsFromFile({ text: '', processed: false });
+                        }}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                    {standardsFromFile.processed && (
+                      <div className="mt-2">
+                        <p className="text-xs text-muted-foreground">Extracted content:</p>
+                        <p className="text-xs border p-2 mt-1 rounded-md max-h-20 overflow-auto whitespace-pre-wrap">
+                          {standardsFromFile.text}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+                
                 <div className="space-y-2">
                   <label htmlFor="standard-id" className="text-sm font-medium">Standard ID *</label>
                   <Input
@@ -252,7 +418,13 @@ export function StandardsIntegration({ selectedStandards, onStandardsChange }: S
               </div>
               
               <DialogFooter>
-                <Button variant="outline" onClick={() => setShowCustomStandardModal(false)}>
+                <Button variant="outline" onClick={() => {
+                  setCustomStandardId('');
+                  setCustomStandardDescription('');
+                  setUploadedFile(null);
+                  setStandardsFromFile({ text: '', processed: false });
+                  setShowCustomStandardModal(false);
+                }}>
                   Cancel
                 </Button>
                 <Button onClick={handleAddCustomStandard}>

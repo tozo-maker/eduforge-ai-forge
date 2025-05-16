@@ -1,4 +1,3 @@
-
 import { claudeService } from './claudeService';
 import { Subject, GradeLevel } from '@/types/project';
 
@@ -18,6 +17,7 @@ export const topicSuggestionsService = {
     learningObjectives: string[] = []
   ): Promise<TopicSuggestion[]> {
     try {
+      console.log("Generating complementary subjects with Claude...");
       const objectivesText = learningObjectives.join('\n');
       
       const prompt = `Generate 3 complementary subject areas that would pair well with ${primarySubject.replace('_', ' ')} 
@@ -43,9 +43,9 @@ Only return the JSON array with no additional text.`;
 
       const { data, error } = await claudeService.generateContent({
         prompt,
-        model: 'claude-3-haiku',
+        model: 'claude-3-sonnet',
         format: 'json',
-        temperature: 0.2
+        temperature: 0.3
       });
 
       if (error || !data || !Array.isArray(data)) {
@@ -54,6 +54,7 @@ Only return the JSON array with no additional text.`;
         return getFallbackSuggestions(primarySubject, gradeLevel, learningObjectives);
       }
 
+      console.log("Generated topic suggestions:", data);
       return data as TopicSuggestion[];
     } catch (error) {
       console.error("Failed to generate topic suggestions:", error);
