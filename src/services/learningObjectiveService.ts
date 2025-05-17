@@ -35,7 +35,7 @@ Return ONLY the learning objectives as a JSON array of strings, with no explanat
       // Call Claude API via edge function
       const { data, error } = await claudeService.generateContent({
         prompt,
-        model: 'claude-3-sonnet',
+        model: 'claude-3-haiku', // Changed from claude-3-sonnet to claude-3-haiku
         format: 'json',
         temperature: 0.2,
         maxTokens: 600

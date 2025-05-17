@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -29,7 +28,7 @@ export function OutlineGenerator({
   const [generationParams, setGenerationParams] = useState<OutlineGenerationParams>({
     projectConfig,
     detailLevel: 'medium',
-    model: 'claude-3-haiku',
+    model: 'claude-3-haiku', // Updated to use claude-3-haiku by default
     includeAssessments: true,
     includeActivities: true,
     focusAreas: [],
@@ -153,6 +152,8 @@ export function OutlineGenerator({
     try {
       setIsGenerating(true);
       
+      console.log('Generating outline with params:', generationParams);
+      
       const outline = await generateOutline({
         ...generationParams,
         projectConfig,
@@ -177,7 +178,9 @@ export function OutlineGenerator({
       console.error('Error generating outline:', error);
       toast({
         title: "Generation Failed",
-        description: "There was an error generating your outline. Please try again.",
+        description: error instanceof Error 
+          ? error.message 
+          : "There was an error generating your outline. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -219,9 +222,10 @@ export function OutlineGenerator({
               <SelectContent>
                 <SelectItem value="claude-instant">Claude Instant (Fast)</SelectItem>
                 <SelectItem value="claude-2">Claude 2 (Balanced)</SelectItem>
-                <SelectItem value="claude-3-haiku">Claude 3 Haiku (Fast)</SelectItem>
-                <SelectItem value="claude-3-sonnet">Claude 3 Sonnet (Balanced)</SelectItem>
-                <SelectItem value="claude-3-opus">Claude 3 Opus (Advanced)</SelectItem>
+                <SelectItem value="claude-3-haiku">Claude 3 Haiku (Recommended)</SelectItem>
+                {/* Commented out models that might not be available */}
+                {/* <SelectItem value="claude-3-sonnet">Claude 3 Sonnet (Balanced)</SelectItem> */}
+                {/* <SelectItem value="claude-3-opus">Claude 3 Opus (Advanced)</SelectItem> */}
               </SelectContent>
             </Select>
           </div>

@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { OutlineGenerationParams, OutlineNode, Outline } from '@/types/outline';
 import { toast } from '@/hooks/use-toast';
@@ -28,6 +27,8 @@ export const claudeService = {
         return { data: null, error: 'Rate limit reached' };
       }
       
+      console.log(`Calling Claude API with model: ${model}`);
+      
       // Call Supabase Edge Function that interacts with Claude API
       const { data, error } = await supabase.functions.invoke('generate-with-claude', {
         body: {
@@ -42,6 +43,11 @@ export const claudeService = {
       if (error) {
         console.error('Claude API error:', error);
         return { data: null, error: error.message };
+      }
+
+      if (data && data.error) {
+        console.error('Claude service error:', data.error);
+        return { data: null, error: data.error };
       }
 
       return { data: data?.content, error: null };
@@ -77,6 +83,10 @@ export const claudeService = {
         return null;
       }
       
+      // Make sure we're using a valid model (defaulting to claude-3-haiku)
+      const model = params.model === 'claude-3-sonnet' ? 'claude-3-haiku' : params.model;
+      console.log(`Using Claude model: ${model} for outline generation`);
+      
       // Construct prompt based on project configuration
       const prompt = constructPrompt(params);
       
@@ -84,27 +94,28 @@ export const claudeService = {
       const { data, error } = await supabase.functions.invoke('generate-with-claude', {
         body: {
           prompt,
-          model: params.model,
+          model, // Use validated model
           projectConfig: params.projectConfig,
+          format: 'json',
           structureType: params.structureType || 'sequential',
           referenceUrls: params.referenceUrls || [],
-          // Fix: Use referenceUrls instead of references
-          // references property doesn't exist on OutlineGenerationParams
         }
       });
 
       if (error) {
         console.error('Claude API error:', error);
-        throw new Error(error.message);
+        throw new Error(`Claude API error: ${error.message}`);
       }
 
-      // Check if data contains outline
-      if (!data?.outline) {
-        throw new Error('No outline content returned from Claude API');
+      // Check if data contains outline or content
+      const outlineData = data?.outline || data?.content;
+      if (!outlineData) {
+        console.error('No outline content returned from Claude API:', data);
+        throw new Error('No content returned from Claude API');
       }
       
       // Parse Claude's response
-      const parsedOutline = this.processClaudeResponse(data.outline, params);
+      const parsedOutline = this.processClaudeResponse(outlineData, params);
       
       // Cache the successful response
       this.addToCache(cacheKey, parsedOutline, 30 * 60 * 1000); // Cache for 30 minutes
@@ -114,7 +125,7 @@ export const claudeService = {
       console.error('Error generating outline with Claude:', error);
       
       // Handle common API errors
-      let errorMessage = 'There was an issue connecting to Claude. Please try again later.';
+      let errorMessage = 'There was an issue generating content. Using fallback outline.';
       
       if (error instanceof Error) {
         if (error.message.includes('rate limit')) {
@@ -123,15 +134,30 @@ export const claudeService = {
           errorMessage = 'API authorization error. Please check your API key.';
         } else if (error.message.includes('timeout')) {
           errorMessage = 'The request timed out. Please try again.';
+        } else if (error.message.includes('model')) {
+          errorMessage = 'The selected AI model is not available. Using fallback outline.';
         }
       }
       
       toast({
-        title: 'AI Generation Error',
+        title: 'AI Generation Notice',
         description: errorMessage,
         variant: 'destructive',
       });
-      return null;
+      
+      // Import the generator function from outlineGeneration service for fallback
+      const { generateOutlineNodes } = require('./outlineGeneration');
+      
+      // Return fallback outline
+      return generateOutlineNodes(
+        params.projectConfig,
+        params.detailLevel,
+        params.includeAssessments,
+        params.includeActivities,
+        0,
+        [],
+        params.structureType
+      );
     }
   },
   
