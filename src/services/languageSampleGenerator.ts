@@ -1,4 +1,3 @@
-
 import { LanguageConfig, CulturalContext, TerminologyType } from '@/types/project';
 import { claudeService } from '@/services/claudeService';
 
@@ -32,7 +31,7 @@ export const generateLanguageSample = async (
     // Call Claude API via the claude service
     const { data, error } = await claudeService.generateContent({
       prompt,
-      model: 'claude-3-sonnet',
+      model: 'claude-3-haiku', // Updated to use claude-3-haiku
       format: 'text',
       temperature: 0.7,
       maxTokens: 500

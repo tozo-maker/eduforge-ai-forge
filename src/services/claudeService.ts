@@ -29,6 +29,13 @@ export const claudeService = {
       
       console.log(`Calling Claude API with model: ${model}`);
       
+      // Ensure we're using a valid model
+      const validModel = this.validateModel(model);
+      if (validModel !== model) {
+        console.log(`Model ${model} not available, using ${validModel} instead`);
+        model = validModel;
+      }
+      
       // Call Supabase Edge Function that interacts with Claude API
       const { data, error } = await supabase.functions.invoke('generate-with-claude', {
         body: {
@@ -83,12 +90,15 @@ export const claudeService = {
         return null;
       }
       
-      // Make sure we're using a valid model (defaulting to claude-3-haiku)
-      const model = params.model === 'claude-3-sonnet' ? 'claude-3-haiku' : params.model;
+      // Make sure we're using a valid model
+      const model = this.validateModel(params.model);
       console.log(`Using Claude model: ${model} for outline generation`);
       
       // Construct prompt based on project configuration
       const prompt = constructPrompt(params);
+      
+      // Add debugging info for the prompt
+      console.log(`Generated prompt (first 200 chars): ${prompt.substring(0, 200)}...`);
       
       // Call Supabase Edge Function that interacts with Claude API
       const { data, error } = await supabase.functions.invoke('generate-with-claude', {
@@ -112,6 +122,14 @@ export const claudeService = {
       if (!outlineData) {
         console.error('No outline content returned from Claude API:', data);
         throw new Error('No content returned from Claude API');
+      }
+      
+      // Debug the response 
+      console.log(`Claude response type: ${typeof outlineData}`);
+      if (typeof outlineData === 'string') {
+        console.log(`Claude response (first 200 chars): ${outlineData.substring(0, 200)}...`);
+      } else {
+        console.log('Claude returned structured data:', outlineData);
       }
       
       // Parse Claude's response
@@ -161,6 +179,23 @@ export const claudeService = {
     }
   },
   
+  // Helper to validate model selection and ensure we use available models
+  validateModel(requestedModel: string): string {
+    const availableModels = [
+      'claude-instant',
+      'claude-2',
+      'claude-3-haiku'
+    ];
+    
+    // If the requested model is available, use it
+    if (availableModels.includes(requestedModel)) {
+      return requestedModel;
+    }
+    
+    // Otherwise default to claude-3-haiku which should be more widely available
+    return 'claude-3-haiku';
+  },
+  
   // Generate summary of an outline
   async generateOutlineSummary(outline: Outline): Promise<string | null> {
     try {
@@ -203,7 +238,7 @@ Include key learning objectives, estimated duration, and the main flow of topics
         throw new Error(error.message);
       }
       
-      const summary = data?.outline || null;
+      const summary = data?.content || null;
       
       // Cache the summary
       if (summary) {
@@ -267,7 +302,7 @@ Please suggest:
         throw new Error(error.message);
       }
       
-      const suggestions = data?.outline || null;
+      const suggestions = data?.content || null;
       
       // Cache the suggestions
       if (suggestions) {
@@ -338,38 +373,65 @@ Please suggest:
   processClaudeResponse(responseText: string, params: OutlineGenerationParams): OutlineNode[] {
     try {
       // Try to parse as JSON first (in case Claude returned valid JSON)
-      console.log('Processing Claude response:', responseText.substring(0, 100) + '...');
+      console.log('Processing Claude response:', typeof responseText);
       
-      try {
-        // Attempt to parse the response directly
-        const parsed = JSON.parse(responseText);
-        if (Array.isArray(parsed)) {
-          console.log('Claude returned array of nodes');
-          return parsed;
+      // If responseText is already an object, just return it if it's an array
+      if (typeof responseText === 'object' && responseText !== null) {
+        if (Array.isArray(responseText)) {
+          return responseText;
         }
-        if (parsed.rootNodes && Array.isArray(parsed.rootNodes)) {
-          console.log('Claude returned object with rootNodes array');
-          return parsed.rootNodes;
+        if (responseText.rootNodes && Array.isArray(responseText.rootNodes)) {
+          return responseText.rootNodes;
         }
-        
-        console.log('Claude returned JSON but not in expected format:', parsed);
-      } catch (jsonError) {
-        console.log('Initial JSON parse failed, trying to extract JSON from text response');
       }
       
-      // Try to extract JSON from a text response
-      // Look for JSON-like patterns in the response
-      const jsonMatch = responseText.match(/\[\s*\{[\s\S]*\}\s*\]/); // Match array of objects
-      if (jsonMatch) {
+      // If it's a string, try to parse it
+      if (typeof responseText === 'string') {
         try {
-          const extractedJson = jsonMatch[0];
-          console.log('Extracted JSON from text response');
-          const parsedExtracted = JSON.parse(extractedJson);
-          if (Array.isArray(parsedExtracted)) {
-            return parsedExtracted;
+          // Attempt to parse the response directly
+          const parsed = JSON.parse(responseText);
+          if (Array.isArray(parsed)) {
+            console.log('Claude returned array of nodes');
+            return parsed;
           }
-        } catch (extractError) {
-          console.error('Failed to parse extracted JSON:', extractError);
+          if (parsed.rootNodes && Array.isArray(parsed.rootNodes)) {
+            console.log('Claude returned object with rootNodes array');
+            return parsed.rootNodes;
+          }
+          
+          console.log('Claude returned JSON but not in expected format:', parsed);
+        } catch (jsonError) {
+          console.log('Initial JSON parse failed, trying to extract JSON from text response');
+        }
+        
+        // Try to extract JSON from a text response
+        // Look for JSON-like patterns in the response - improved regex for better matching
+        const patterns = [
+          /\[\s*\{[\s\S]*\}\s*\]/,                 // Array of objects
+          /\{\s*"rootNodes"\s*:\s*\[[\s\S]*\]\s*\}/, // Object with rootNodes array
+          /\{\s*"id"\s*:[\s\S]*\}/                  // Single object
+        ];
+        
+        for (const pattern of patterns) {
+          const match = responseText.match(pattern);
+          if (match) {
+            try {
+              const extractedJson = match[0];
+              console.log('Extracted JSON from text response');
+              const parsed = JSON.parse(extractedJson);
+              
+              if (Array.isArray(parsed)) {
+                return parsed;
+              } else if (parsed.rootNodes && Array.isArray(parsed.rootNodes)) {
+                return parsed.rootNodes;
+              } else if (parsed.id) {
+                // Single node case - wrap in array
+                return [parsed];
+              }
+            } catch (extractError) {
+              console.error('Failed to parse extracted JSON:', extractError);
+            }
+          }
         }
       }
       
@@ -378,6 +440,13 @@ Please suggest:
       
       // Import the generator function from outlineGeneration service
       const { generateOutlineNodes } = require('./outlineGeneration');
+      
+      // Show toast to inform user
+      toast({
+        title: 'Content Generation Notice',
+        description: 'Using fallback content generator due to AI service limitations.',
+        variant: 'default',
+      });
       
       return generateOutlineNodes(
         params.projectConfig,
@@ -390,10 +459,22 @@ Please suggest:
       );
     } catch (error) {
       console.error('Error parsing Claude response:', error);
-      console.log('Raw Claude response:', responseText);
+      console.log('Raw Claude response type:', typeof responseText);
+      
+      if (typeof responseText === 'string') {
+        console.log('Raw Claude response (first 200 chars):', responseText.substring(0, 200));
+      }
       
       // Fall back to mock data
       const { generateOutlineNodes } = require('./outlineGeneration');
+      
+      // Show toast to inform user
+      toast({
+        title: 'Content Generation Issue',
+        description: 'Unable to process AI response. Using fallback generator.',
+        variant: 'destructive',
+      });
+      
       return generateOutlineNodes(
         params.projectConfig,
         params.detailLevel,
@@ -461,34 +542,24 @@ function constructPrompt(params: OutlineGenerationParams): string {
     });
   }
   
-  // Add output format instructions
+  // Add output format instructions - simplified for better Claude performance
   prompt += `\n\nReturn the outline as a valid JSON array of OutlineNode objects with this structure:
 [
   {
-    "id": "unique-id",
+    "id": "node-1",
     "title": "Section Title",
     "description": "Section description",
     "type": "section",
     "estimatedWordCount": 500,
     "estimatedDuration": 30,
-    "standardIds": ["std-1", "std-2"],
+    "standardIds": ["std-1"],
     "taxonomyLevel": "understand",
     "difficultyLevel": "intermediate",
-    "children": [
-      // Child nodes with same structure
-    ],
-    "assessmentPoints": [
-      {
-        "id": "assessment-id",
-        "description": "Assessment description",
-        "taxonomyLevel": "apply",
-        "standardIds": ["std-1"],
-        "type": "formative"
-      }
-    ]
+    "children": []
   }
 ]
-`;
+
+IMPORTANT: Format your response as VALID JSON ONLY with no additional explanations or text outside the JSON array.`;
 
   return prompt;
 }

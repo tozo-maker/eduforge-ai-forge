@@ -28,7 +28,7 @@ export function OutlineGenerator({
   const [generationParams, setGenerationParams] = useState<OutlineGenerationParams>({
     projectConfig,
     detailLevel: 'medium',
-    model: 'claude-3-haiku', // Updated to use claude-3-haiku by default
+    model: 'claude-3-haiku', // Use claude-3-haiku by default
     includeAssessments: true,
     includeActivities: true,
     focusAreas: [],
@@ -66,7 +66,7 @@ export function OutlineGenerator({
   ) => {
     setGenerationParams(prev => ({ ...prev, [key]: value }));
   };
-
+  
   const addFocusArea = () => {
     if (focusArea.trim()) {
       setGenerationParams(prev => ({
@@ -223,9 +223,6 @@ export function OutlineGenerator({
                 <SelectItem value="claude-instant">Claude Instant (Fast)</SelectItem>
                 <SelectItem value="claude-2">Claude 2 (Balanced)</SelectItem>
                 <SelectItem value="claude-3-haiku">Claude 3 Haiku (Recommended)</SelectItem>
-                {/* Commented out models that might not be available */}
-                {/* <SelectItem value="claude-3-sonnet">Claude 3 Sonnet (Balanced)</SelectItem> */}
-                {/* <SelectItem value="claude-3-opus">Claude 3 Opus (Advanced)</SelectItem> */}
               </SelectContent>
             </Select>
           </div>

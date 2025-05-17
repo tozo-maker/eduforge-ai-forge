@@ -43,7 +43,7 @@ Only return the JSON array with no additional text.`;
 
       const { data, error } = await claudeService.generateContent({
         prompt,
-        model: 'claude-3-sonnet',
+        model: 'claude-3-haiku', // Changed from claude-3-sonnet to claude-3-haiku
         format: 'json',
         temperature: 0.3
       });
